@@ -4,11 +4,13 @@ import Landing from './pages/Landing';
 import Inventory from './pages/Inventory';
 import Recipee from './pages/Recipee';
 import FamilyPage from './pages/Family';
+import Health from './pages/Health';
 import Nav from './components/Nav';
 import { UserContext } from './context/Session';
 import { cancelPendingRequests } from './utils/authenticatedApi';
 import { clearNotifications } from './utils/notifications';
 import { ToastContainer } from 'react-toastify';
+import './css/PageTypography.css';
 
 function PageContent() {
   const location = useLocation();
@@ -24,6 +26,7 @@ function PageContent() {
     <Route path="/family" element={<FamilyPage/>}/>
     <Route path="/inventory" element={<Inventory/>}/>
     <Route path="/recipe" element={<Recipee/>}/>
+    <Route path="/health" element={<Health/>}/>
     <Route path="*" element={<div className="pt-32 text-center">Page not found.</div>}/>
   </Routes></>;
 }

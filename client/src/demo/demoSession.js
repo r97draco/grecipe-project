@@ -8,7 +8,7 @@ function seed(){
     {_id:'demo-sam',userName:'Sam Lee',email:'sam@demo.grecipe.test',family:'demo-kitchen',isFamilyHead:false},
     {_id:'demo-taylor',userName:'Taylor Kim',email:'taylor@demo.grecipe.test',family:'demo-kitchen',isFamilyHead:false},
     {_id:'demo-jamie',userName:'Jamie Park',email:'jamie@demo.grecipe.test',family:'demo-roommates',isFamilyHead:true}
-  ],families:[{_id:'demo-kitchen',name:'The Demo Kitchen'},{_id:'demo-roommates',name:'Roommates'}],items:[
+  ],health:{profile:{age:24,gender:'',height:175,weight:72,goal:70,targetReps:10},sessions:[{id:'demo-session',reps:10,seconds:65,arm:'both',leftReps:5,rightReps:5,createdAt:new Date().toISOString()}]},families:[{_id:'demo-kitchen',name:'The Demo Kitchen'},{_id:'demo-roommates',name:'Roommates'}],items:[
     ['Eggs',6,7],['Spinach',1,2],['Tomato',4,3],['Banana',5,4],['Milk',1,6],['Chicken',2,1],['Rice',1,14],['Chickpeas',2,14],['Bread',1,-1],['Olive oil',1,14]
   ].map(([name,quantity,days],index)=>({_id:`demo-item-${index}`,familyId:'demo-kitchen',name,quantity,expiresAt:dateIn(days),expirySource:'default'}))};
 }
@@ -41,6 +41,14 @@ function execute(config){
   const params=config.params||{};const profile=state.users.find(user=>user._id===state.userId);
   let data;let status=200;
   if(path==='user/getuser')data=profile;
+  else if(path==='health'){
+    if(!state.health)state.health={profile:{targetReps:10},sessions:[]};
+    if(method==='put'){state.health.profile=body;data=body;}else data=state.health;
+  }else if(path==='health/sessions'&&method==='post'){
+    if(!state.health)state.health={profile:{targetReps:10},sessions:[]};
+    if(state.health.sessions.some(session=>session.id===body.id)){data=state.health.sessions.find(session=>session.id===body.id);}
+    else{data={...body,createdAt:new Date().toISOString()};state.health.sessions.unshift(data);state.health.sessions=state.health.sessions.slice(0,10);}status=201;
+  }
   else if(path==='family/getallfamilies')data=state.families.map(item=>family(item._id));
   else if(path==='family/createfamily'&&method==='post'){
     const f={_id:crypto.randomUUID(),name:body.name};state.families.push(f);profile.family=f._id;profile.isFamilyHead=true;data=family(f._id);status=201;

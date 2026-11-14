@@ -106,3 +106,5 @@ This project is licensed under the MIT License - see the `LICENSE` file for deta
 Use **Try the demo** on the landing page to explore a fictional profile, family, inventory, recipes, receipt scan, and nutrition cards without an account. Each browser tab has its own editable sample data. **Reset demo** restores the sample state; **Exit demo** clears it.
 
 See [Render setup](docs/RENDER.md) for the two-service free deployment, environment variables, Firebase authorized domains, and SQLite persistence limitations.
+
+The **Health** page adds editable profile details, repetition goals, and browser-based MoveNet bicep-curl tracking adapted from HACKED2024. See [Health and pose tracking](docs/HEALTH.md) for implementation and deployment notes.

@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import Modal from 'react-modal';
-import { FiArrowLeft, FiArrowRight, FiBarChart2, FiHash, FiSearch, FiX } from 'react-icons/fi';
+import { FiArrowLeft, FiArrowRight, FiBarChart2, FiCamera, FiHash, FiSearch, FiX } from 'react-icons/fi';
+import BarcodeScanner from './BarcodeScanner';
+import { requestCamera } from '../../utils/camera';
 import { backendUrl } from '../../App';
 import api, { isCanceled } from '../../utils/authenticatedApi';
 import '../../css/Nutrition.css';
@@ -12,6 +14,8 @@ export default function NutritionModal({item,initial,onClose,onResult}) {
   const [mode,setMode]=useState(initial?.provider==='openfoodfacts'?'barcode':'search');
   const [query,setQuery]=useState(item.name);
   const [barcode,setBarcode]=useState(initial?.provider==='openfoodfacts'?initial.id:'');
+  const [scanning,setScanning]=useState(false);
+  const [cameraRequest,setCameraRequest]=useState(null);
   const [foods,setFoods]=useState([]);
   const [searched,setSearched]=useState(false);
   const [loading,setLoading]=useState(!initial);
@@ -44,7 +48,14 @@ export default function NutritionModal({item,initial,onClose,onResult}) {
     }catch(error){if(active.current&&!controller.signal.aborted&&!isCanceled(error))setError(error.response?.data?.message||'Couldn’t load nutrition. Please try again.');}
     finally{if(active.current&&!controller.signal.aborted){inFlight.current=false;setLoading(false);}}
   };
-  const changeMode=value=>{request.current?.abort();inFlight.current=false;setLoading(false);setError('');setMode(value);};
+  const changeMode=value=>{request.current?.abort();inFlight.current=false;setLoading(false);setError('');setScanning(false);setMode(value);};
+  const scanBarcode=value=>{setScanning(false);setBarcode(value);load(`/barcode/${value}`,{},'food');};
+  const startScanner=()=>{
+    const controller=new AbortController();
+    const promise=requestCamera({facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}},controller.signal)
+      .then(stream=>({stream}),error=>({error}));
+    setCameraRequest({controller,promise});setError('');setScanning(true);
+  };
   const submit=event=>{
     event.preventDefault();
     if(mode==='search'&&query.trim().length>=2)load('/search',{q:query.trim()},'search');
@@ -62,7 +73,8 @@ export default function NutritionModal({item,initial,onClose,onResult}) {
         <div className="nutrition-source"><a href={food.sourceUrl} target="_blank" rel="noreferrer">{food.source}<FiArrowRight/></a><span>{food.attribution}</span></div>
       </> : <>
         <div className="nutrition-modes" role="group" aria-label="Nutrition lookup source"><button aria-pressed={mode==='search'} onClick={()=>changeMode('search')}><FiSearch/>Food search</button><button aria-pressed={mode==='barcode'} onClick={()=>changeMode('barcode')}><FiHash/>Barcode</button></div>
-        <form className="nutrition-search-form" onSubmit={submit}><label htmlFor="nutrition-query">{mode==='search'?'Find a matching food':'Product barcode'}</label><div><input id="nutrition-query" value={mode==='search'?query:barcode} onChange={event=>mode==='search'?setQuery(event.target.value):setBarcode(event.target.value.replace(/\D/g,''))} inputMode={mode==='barcode'?'numeric':'text'} maxLength={mode==='barcode'?14:100} placeholder={mode==='search'?'e.g. banana, raw':'Enter 8–14 digits'}/><button className="inventory-button primary" disabled={loading||(mode==='search'?query.trim().length<2:!/^\d{8,14}$/.test(barcode))}><FiSearch/>{mode==='search'?'Search':'Look up'}</button></div><span>{mode==='search'?'USDA FoodData Central':'Open Food Facts'}</span></form>
+        {mode==='barcode'&&(scanning ? <BarcodeScanner cameraRequest={cameraRequest} onDetected={scanBarcode} onCancel={()=>setScanning(false)}/> : <button type="button" className="inventory-button secondary nutrition-scan-button" onClick={startScanner} disabled={loading}><FiCamera/>Scan with camera</button>)}
+        <form className="nutrition-search-form" onSubmit={submit}><label htmlFor="nutrition-query">{mode==='search'?'Find a matching food':'Product barcode'}</label><div><input id="nutrition-query" value={mode==='search'?query:barcode} onChange={event=>mode==='search'?setQuery(event.target.value):setBarcode(event.target.value.replace(/\D/g,''))} inputMode={mode==='barcode'?'numeric':'text'} maxLength={mode==='barcode'?14:100} placeholder={mode==='search'?'e.g. banana, raw':'Enter 8–14 digits'}/><button className="inventory-button primary" disabled={scanning||loading||(mode==='search'?query.trim().length<2:!/^\d{8,14}$/.test(barcode))}><FiSearch/>{mode==='search'?'Search':'Look up'}</button></div><span>{mode==='search'?'USDA FoodData Central':'Open Food Facts'}</span></form>
         {loading ? <div className="nutrition-loading" role="status"><span/>Loading nutrition…</div> : mode==='search' && <div className="nutrition-matches">{foods.length>0&&<p>Choose the food that matches your item.</p>}{foods.map(candidate=><button key={candidate.id} onClick={()=>load(`/usda/${candidate.id}`,{},'food')}><span><strong>{candidate.name}</strong><small>{candidate.type}</small></span><FiArrowRight/></button>)}{searched&&!foods.length&&!error&&<p>No matches found. Try another food name.</p>}</div>}
       </>}
       {error&&<div className="nutrition-error" role="alert">{error}</div>}

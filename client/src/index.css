@@ -28,3 +28,4 @@
 .demo-entry{margin-left:10px}
 @media(max-width:767px){.demo-banner{top:64px;font-size:11px;padding:7px 12px}}
 @media(max-width:480px){.demo-entry{display:flex;margin:12px auto 0;min-width:230px}}
+@media(max-width:639px){.grecipe-nav .nav-logo-container img{width:56px}.grecipe-nav nav li>a{padding-left:4px;padding-right:4px}.grecipe-nav nav li>img{display:none}.grecipe-nav nav li:has(>button){gap:0}.grecipe-nav nav button{font-size:12px;padding:8px;margin-left:4px;white-space:nowrap}.grecipe-nav nav button svg{display:none}}

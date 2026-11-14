@@ -39,10 +39,11 @@ function Nav() {
     { to: "/family", title: "Family" },
     { to: "/inventory", title: "Inventory" },
     { to: "/recipe", title: "Recipe" },
+    { to: "/health", title: "Health" },
   ];
   return (
     <header
-      className={`fixed w-full z-30 backdrop-blur-md  md:bg-opacity-90 transition duration-300 ease-in-out shadow-lg ${
+      className={`grecipe-nav fixed w-full z-30 backdrop-blur-md  md:bg-opacity-90 transition duration-300 ease-in-out shadow-lg ${
         !top && "  "
       }`}
     >
