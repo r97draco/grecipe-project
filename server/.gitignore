@@ -17,3 +17,8 @@ yarn-error.log*
 
 #log file
 src/server.log
+
+# Local SQLite database
+/data/
+
+/uploads/

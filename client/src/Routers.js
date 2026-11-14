@@ -4,6 +4,7 @@ import React from "react";
 import Landing from "./pages/Landing";
 import Inventory from "./pages/Inventory";
 import Recipee from "./pages/Recipee";
+import FamilyPage from "./pages/Family";
 
 import Nav from "./components/Nav";
 import { ToastContainer } from "react-toastify";
@@ -18,6 +19,7 @@ const Routers = () => {
         <div className="px-4 mx-auto sm:px-6">
           <Routes>
             <Route path="/" element={<Landing />} />
+            <Route path="/family" element={<FamilyPage />} />
             <Route path="/inventory" element={<Inventory />} />
             <Route path="/recipe" element={<Recipee />} />
           </Routes>

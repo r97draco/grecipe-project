@@ -1,178 +1,24 @@
-import { useState } from "react";
-import Modal from "react-modal";
-import CreatableSelect from "react-select/creatable";
-import { getFoodOptions } from "../../utils/inventory";
-import AddItem from "./AddItem";
-import { Button } from "@mui/material";
+import { useEffect, useState } from 'react';
+import Modal from 'react-modal';
+import CreatableSelect from 'react-select/creatable';
+import { FiCheck, FiPlus, FiX } from 'react-icons/fi';
+import { getFoodOptions } from '../../utils/inventory';
+const options = getFoodOptions();
 
-// Custom styles for react-select component
-const selectStyles = {
-  control: (styles) => ({
-    ...styles,
-    backgroundColor: "white",
-    borderColor: "#fe9e0d",
-    boxShadow: "none",
-    "&:hover": {
-      borderColor: "#fe9e0d",
-    },
-  }),
-  option: (styles, { isFocused, isSelected }) => {
-    return {
-      ...styles,
-      backgroundColor: isFocused
-        ? "#ffedd5"
-        : isSelected
-        ? "#fe9e0d"
-        : undefined,
-      color: isFocused ? "#1a202c" : isSelected ? "white" : "#1a202c",
-      cursor: "pointer",
-    };
-  },
-};
-
-const customStyles = {
-  content: {
-    position: "fixed",
-    width: "350px",
-    height: "600px",
-    top: "calc(50% - 300px)",
-    left: "calc(50% - 175px)",
-    overflow: "auto",
-    borderRadius: "1rem",
-    backgroundColor: "white",
-    padding: "2rem",
-    borderColor: "#fe9e0d",
-    borderWidth: "2px",
-  },
-};
-
-const AddEditItemModal = ({
-  prevItem,
-  isEdit,
-  addItemToStore,
-  isOpen,
-  closeModal,
-}) => {
-  const [name, setName] = useState(prevItem?.name || "");
-  const [quantity, setQuantity] = useState(1);
-  // expires at is the current date by default
-  const today = new Date();
-  const todayString = today.toISOString().split("T")[0];
-  const [expiresAt, setExpiresAt] = useState(
-    prevItem?.expiresAt || todayString
-  );
-  // const [expiresAt, setExpiresAt] = useState(prevItem?.expiresAt || "");
-
-  // const addItem = async () => {
-  //   const response = await customFetch("/api/inventory/add", {
-  //     method: "POST",
-  //     body: JSON.stringify([
-  //       {
-  //         name,
-  //         quantity,
-  //         expiresAt,
-  //       },
-  //     ]),
-  //   });
-
-  //   if (response.status === "success") {
-  //     closeModal();
-  //   }
-  // };
-
-  //   const updateItem = async () => {
-  //     const response = await customFetch("/api/inventory/update", {
-  //       method: "PUT",
-  //       body: JSON.stringify({
-  //         name,
-  //         quantity,
-  //         expiresAt,
-  //       }),
-  //     });
-
-  //     if (response.status === "success") {
-  //       closeModal();
-  //     }
-  //   };
-
-  const submitForm = (e) => {
-    e.preventDefault();
-    addItemToStore({
-      name,
-      quantity,
-      expiresAt,
-    });
-    setName("");
-    setQuantity(1);
-    setExpiresAt(""); // Reset expiry date
-    closeModal();
-
-    // if (isEdit) {
-    //   updateItem();
-    // } else {
-    //   addItem();
-    // }
-  };
-
-  const foodOptions = getFoodOptions();
-
-  return (
-    <Modal isOpen={isOpen} onRequestClose={closeModal} style={customStyles}>
-      <h1 className="mb-4 text-2xl font-bold text-gray-800">
-        {isEdit ? "Edit" : "Add"} item
-      </h1>
-
-      <form className="flex flex-col space-y-4" onSubmit={submitForm}>
-        <div className="flex flex-col">
-          <label htmlFor="name" className="mb-1 text-gray-700">
-            Name
-          </label>
-          <CreatableSelect
-            isClearable
-            options={foodOptions}
-            value={foodOptions.find((option) => option.value === name)}
-            onChange={(option) => setName(option?.value || "")}
-            styles={selectStyles}
-          />
-        </div>
-
-        <div className="flex flex-col">
-          <label htmlFor="quantity" className="mb-1 text-gray-700">
-            Quantity
-          </label>
-          <input
-            id="quantity"
-            type="number"
-            required
-            className="w-full px-3 py-2 leading-tight text-gray-700 border rounded shadow appearance-none focus:outline-none focus:shadow-outline"
-            value={quantity}
-            onChange={(e) => setQuantity(e.target.value)}
-          />
-        </div>
-
-        <div className="flex flex-col">
-          <label htmlFor="expiresAt" className="mb-1 text-gray-700">
-            Expiry Date
-          </label>
-          <input
-            id="expiresAt"
-            type="date"
-            className="w-full px-3 py-2 leading-tight text-gray-700 border rounded shadow appearance-none focus:outline-none focus:shadow-outline"
-            value={expiresAt}
-            onChange={(e) => setExpiresAt(e.target.value)}
-          />
-        </div>
-
-        <Button
-          type="submit"
-          className="px-4 py-2 font-bold text-white transition-colors duration-200 transform bg-orange-500 rounded hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500"
-          disabled={!name || name.length === 0 || name === ""}
-        >
-          {isEdit ? "Update item" : "Add item"}
-        </Button>
-      </form>
-    </Modal>
-  );
-};
-
-export default AddEditItemModal;
+export default function AddEditItemModal({prevItem,isEdit,addItemToStore,isOpen,closeModal}) {
+  const [name,setName] = useState('');
+  const [quantity,setQuantity] = useState(1);
+  const [date,setDate] = useState('');
+  useEffect(() => {
+    if (isOpen) { setName(prevItem?.name || '');setQuantity(prevItem?.quantity ?? 1);setDate(prevItem?.expiresAt?.slice(0,10) || ''); }
+  },[isOpen,prevItem]);
+  const valid = name.trim() && Number.isFinite(Number(quantity)) && Number(quantity) > 0;
+  return <Modal isOpen={isOpen} onRequestClose={closeModal} className="inventory-dialog inventory-editor" overlayClassName="inventory-dialog-backdrop" appElement={document.getElementById('root')} contentLabel={isEdit ? 'Edit grocery item' : 'Add grocery item'}>
+    <div className="inventory-dialog-heading"><div><h2>{isEdit ? 'Edit item' : 'Add an item'}</h2><p>{isEdit ? 'Update the details, then save your inventory.' : 'Add grocery details to your shared inventory.'}</p></div><button className="inventory-icon-button" onClick={closeModal} aria-label="Close item form"><FiX/></button></div>
+    <form onSubmit={event => {event.preventDefault();if(valid) addItemToStore({name:name.trim(),quantity:Number(quantity),expiresAt:date || null,expirySource:date ? 'user' : 'unknown'});}}>
+      <label htmlFor="grocery-name">Item name<span>Required</span></label><CreatableSelect inputId="grocery-name" isClearable options={options} placeholder="Search or type an item" value={name ? {value:name,label:name} : null} onChange={value => setName(value?.value || '')} styles={{control:base => ({...base,minHeight:46,borderRadius:8,borderColor:'#ddd',boxShadow:'none'}),menu:base => ({...base,zIndex:5})}}/>
+      <div className="inventory-form-grid"><div><label htmlFor="grocery-quantity">Quantity</label><input id="grocery-quantity" type="number" required min="0.01" step="any" value={quantity} onChange={event => setQuantity(event.target.value)}/></div><div><label htmlFor="grocery-expiry">Date from packaging<span>Optional</span></label><input id="grocery-expiry" type="date" value={date} onChange={event => setDate(event.target.value)}/></div></div>
+      <p className="inventory-form-note">Use the date on the packaging, or leave it blank. Changes are shared only after you save your inventory.</p><div className="inventory-dialog-actions"><button className="inventory-button secondary" type="button" onClick={closeModal}>Cancel</button><button className="inventory-button primary" type="submit" disabled={!valid}>{isEdit ? <FiCheck/> : <FiPlus/>}{isEdit ? 'Apply changes' : 'Add item'}</button></div>
+    </form>
+  </Modal>;
+}

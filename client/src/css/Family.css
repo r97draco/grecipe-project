@@ -1,0 +1,90 @@
+.family-page{padding:142px 16px 80px;min-height:calc(100vh - 130px);color:#333}
+.family-shell{max-width:1000px;margin:0 auto;background:#fbfbfb;border-radius:12px;padding:38px 42px 34px}
+.family-heading{text-align:center;margin-bottom:36px}.family-heading h1{color:var(--primary,#ef851a);font-size:clamp(46px,6vw,72px);font-weight:700;line-height:1.1;letter-spacing:-.025em}.family-heading>p{color:#666;font-size:16px;line-height:1.6;margin-top:12px}
+.family-card{background:#fff;border:1px solid #e9e9e9;border-radius:12px;box-shadow:0 3px 14px #00000004}.family-page h2,.family-confirm h2{font-size:24px;font-weight:500;line-height:1.3;color:#333}.family-icon{display:grid;place-items:center;flex-shrink:0;width:44px;height:44px;background:#fff1e2;color:#d97919;border-radius:12px;font-size:22px}
+.family-button{display:inline-flex;align-items:center;justify-content:center;gap:10px;border-radius:999px;padding:11px 19px;font-size:13px;font-weight:600;line-height:1.5;border:1px solid transparent;cursor:pointer;white-space:nowrap;transition:background .15s,box-shadow .15s}.family-button.primary{background:#f18b27;color:#fff}.family-button.primary:hover:not(:disabled){background:#d97516}.family-button.secondary{background:#fff;color:#555;border-color:#ddd}.family-button.secondary:hover:not(:disabled){background:#f7f7f7}.family-button.danger{background:#c44735;color:#fff}.family-page button:disabled,.family-confirm button:disabled,.family-page input:disabled{opacity:.5;cursor:not-allowed}.family-page button:focus-visible,.family-page a:focus-visible,.family-page input:focus-visible,.family-confirm button:focus-visible{outline:3px solid #efb87b;outline-offset:3px}
+.family-summary{display:flex;align-items:center;gap:16px;padding:25px 26px;margin-bottom:24px}.family-summary-info{flex:1;min-width:0}.family-summary h2{overflow-wrap:anywhere}.family-summary-info p{font-size:12px;color:#777;margin-top:6px}.family-summary-info p>span{margin:0 9px;color:#aaa}.family-summary .family-icon{width:50px;height:50px;font-size:25px}
+.family-section-heading{display:flex;align-items:center;gap:13px}.family-section-heading p{color:#777;line-height:1.6;font-size:12px;margin-top:5px}.family-members-card .family-section-heading{padding:24px 26px 20px;border-bottom:1px solid #eee}.family-count{display:inline-grid;place-items:center;background:#fff1e3;color:#bd701d;font-family:Inter,sans-serif!important;font-size:11px;vertical-align:middle;border-radius:50%;width:24px;height:24px;margin-left:8px}.family-member-list{padding:0 26px}.family-member{display:flex;align-items:center;gap:14px;padding:19px 0;border-bottom:1px solid #eee}.family-member:last-child{border:0}.family-member-avatar{display:grid;place-items:center;background:#f3f3f3;color:#777;border:1px solid #e8e8e8;border-radius:50%;width:42px;height:42px;font-size:13px;font-weight:600;flex-shrink:0}.family-member-identity{flex:1;min-width:0}.family-member-identity strong{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-weight:600;font-size:13px;overflow-wrap:anywhere}.family-member-identity>span{display:block;font-size:12px;color:#888;margin-top:4px;overflow-wrap:anywhere}.family-you{color:#999;font-size:10px;font-weight:400}.family-role{display:flex;align-items:center;gap:5px;background:#f5f5f5;color:#777;border-radius:999px;padding:5px 10px;font-size:11px;white-space:nowrap}.family-role.role-head{background:#fff2e4;color:#bd741e}.family-remove{font-size:12px;color:#b35c4a;padding:5px;margin-left:8px}.family-remove:hover{color:#9d2f1d;text-decoration:underline}.family-join-help{display:flex;gap:10px;align-items:flex-start;background:#fafafa;border-top:1px solid #eee;padding:16px 26px;border-radius:0 0 12px 12px;font-size:12px;color:#888;line-height:1.7}.family-join-help svg{flex-shrink:0;margin-top:3px;font-size:15px}.family-join-help strong{font-weight:500;color:#666}.family-leave{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:23px 3px 0}.family-leave p{font-size:11px;color:#999}.family-leave>button{color:#b35c4a;font-size:12px;white-space:nowrap;text-decoration:underline;text-underline-offset:3px}
+.family-setup-grid{display:grid;grid-template-columns:1fr 1fr;gap:22px}.family-create-card,.family-join-card{padding:25px}.family-create-card form{display:flex;flex-direction:column;align-items:flex-start;margin-top:26px;gap:10px}.family-create-card label{font-size:12px;font-weight:500;color:#555}.family-create-card input,.family-search input{border:1px solid #ddd;border-radius:8px;width:100%;min-width:0;font-size:13px;padding:12px;color:#333;background:#fff}.family-create-card input::placeholder,.family-search input::placeholder{color:#aaa}.family-create-card .family-button{margin-top:6px}.family-hint{display:flex;gap:7px;align-items:center;color:#999;font-size:10px;margin-top:19px;line-height:1.6}.family-hint svg{flex-shrink:0}.family-search{display:flex;align-items:center;position:relative;margin-top:25px}.family-search>svg{position:absolute;left:12px;color:#999}.family-search input{padding-left:36px}.family-available-list{margin-top:12px;max-height:300px;overflow:auto}.family-available{display:flex;gap:10px;align-items:center;border-bottom:1px solid #eee;padding:15px 0}.family-available:last-child{border-bottom:0}.family-available-icon{display:grid;place-items:center;border-radius:9px;width:34px;height:34px;background:#fff4e9;color:#c78b4a;flex-shrink:0}.family-available>div{flex:1;min-width:0}.family-available strong{font-weight:500;font-size:12px;display:block;overflow-wrap:anywhere}.family-available div>span{font-size:11px;color:#999;display:block;margin-top:3px}.family-available .family-button{padding:6px 15px;font-size:11px}.family-empty{padding:30px 15px;text-align:center;color:#999;font-size:12px;line-height:1.7}
+.family-signin{text-align:center;max-width:530px;padding:34px 24px;margin:0 auto 12px}.family-signin .family-icon{margin:0 auto 18px;width:54px;height:54px;font-size:26px}.family-signin h2{font-size:25px}.family-signin p{font-size:13px;color:#888;line-height:1.7;margin:12px 0 23px}.family-loading{text-align:center;padding:60px 20px;color:#888;font-size:13px}.family-alert,.family-notice{display:flex;align-items:center;gap:10px;padding:13px 16px;margin-bottom:20px;border:1px solid #efdbcc;border-radius:8px;background:#fff5ee;font-size:12px;color:#a85f39;line-height:1.6}.family-alert button{margin-left:auto;white-space:nowrap;text-decoration:underline}.family-notice{background:#f2f8ef;border-color:#e0ead9;color:#5e7c45}.family-notice button{margin-left:auto;padding:4px}.family-notice>svg{flex-shrink:0}
+.family-confirm-backdrop{position:fixed;inset:0;background:#0006;display:grid;place-items:center;z-index:100;padding:20px}.family-confirm{max-width:430px;padding:28px}.family-confirm p{font-size:13px;color:#777;line-height:1.7;margin:15px 0 25px}.family-confirm-actions{display:flex;justify-content:flex-end;gap:10px}
+@media(max-width:760px){.family-page{padding:120px 0 55px}.family-shell{padding:30px 20px}.family-heading{margin-bottom:28px}.family-heading p{font-size:14px}.family-setup-grid{grid-template-columns:1fr}.family-summary{flex-wrap:wrap;padding:22px}.family-summary .family-button{margin-left:66px}.family-leave{align-items:flex-start}.family-leave p{max-width:250px}}
+@media(max-width:480px){.family-page{padding-top:108px}.family-shell{padding:27px 15px}.family-member-list{padding:0 17px}.family-member{gap:10px;flex-wrap:wrap}.family-member-identity{flex-basis:calc(100% - 55px)}.family-role{margin-left:52px}.family-remove{margin-left:auto}.family-members-card .family-section-heading{padding:20px 17px}.family-join-help{padding:15px 17px}.family-summary{padding:20px 17px}.family-summary .family-button{margin-left:0;width:100%;margin-top:5px}.family-summary-info p{font-size:11px}.family-leave{flex-direction:column;gap:10px}.family-create-card,.family-join-card{padding:23px 20px}}
+
+/* Keep each task in one predictable place. */
+.family-shell{max-width:1040px}
+.family-button{min-height:44px;font-size:14px;padding:10px 18px}
+.family-button svg{width:17px;height:17px;flex-shrink:0}
+.family-summary{padding:24px;margin-bottom:24px}
+.family-summary-info p{font-size:13px}
+.family-members-card .family-section-heading{justify-content:space-between;gap:20px;padding:24px}
+.family-members-card .family-section-heading p{font-size:13px}
+.family-section-heading .family-button{flex-shrink:0}
+.family-table-labels,.family-member{display:grid;grid-template-columns:minmax(0,1fr) 120px 130px;gap:18px;align-items:center}
+.family-table-labels{padding:13px 24px;background:#f7f7f7;color:#777;font-size:11px;font-weight:600;border-bottom:1px solid #eaeaea}
+.family-table-labels>span:last-child{text-align:right}
+.family-member-list{padding:0 24px}
+.family-member{padding:20px 0}
+.family-member-person{display:flex;align-items:center;gap:13px;min-width:0}
+.family-member-identity strong{font-size:14px}
+.family-member-identity>span{font-size:12px;color:#777}
+.family-role{justify-self:start;font-size:12px;padding:6px 10px}
+.family-member-controls{display:flex;justify-content:flex-end;align-items:center}
+.family-no-action{font-size:12px;color:#999}
+.family-button.remove{background:#fff;color:#ad493a;border:1px solid #e9bfb7;min-height:40px;font-size:12px;padding:8px 12px;text-decoration:none}
+.family-button.remove:hover:not(:disabled){background:#fff3ef;border-color:#cf8070}
+.family-add-panel{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:22px 24px;border-bottom:1px solid #f0d5b4;background:#fff7ed}
+.family-add-panel h3{font-size:19px;color:#555;line-height:1.35}
+.family-add-panel p{font-size:13px;line-height:1.7;color:#777;margin-top:6px;max-width:460px}
+.family-add-panel .family-button{flex-shrink:0;background:#fff}
+.family-leave{margin-top:28px;padding:22px 24px;display:flex;align-items:center;gap:20px;border-color:#ebdcd7}
+.family-leave h2{font-size:20px}
+.family-leave p{font-size:12px;color:#888;margin-top:6px;line-height:1.7;max-width:460px}
+.family-leave>.family-button{font-size:13px;flex-shrink:0;white-space:nowrap;text-decoration:none}
+.family-setup{max-width:700px;margin:0 auto}
+.family-setup-tabs{display:flex;padding:5px;gap:5px;background:#efefef;border:1px solid #e5e5e5;border-radius:12px;margin-bottom:20px}
+.family-setup-tabs button{flex:1;display:flex;align-items:center;justify-content:center;gap:9px;padding:13px 16px;min-height:48px;font-size:14px;font-weight:600;border-radius:8px;color:#777;border:1px solid transparent}
+.family-setup-tabs button[aria-selected=true]{color:#bf6b16;background:#fff;border-color:#eedbc7;box-shadow:0 2px 5px #00000008}
+.family-setup-tabs button:hover{color:#b66a1b}
+.family-create-card,.family-join-card{padding:28px}
+.family-create-card form{margin-top:28px}
+.family-create-card label{font-size:13px}
+.family-create-card input,.family-search input{min-height:48px;font-size:14px}
+.family-create-card form .family-button{align-self:flex-end;margin-top:12px;min-width:160px}
+.family-hint{font-size:12px}
+.family-available{padding:18px 0;gap:13px}
+.family-available strong{font-size:14px}
+.family-available div>span{font-size:12px;color:#888}
+.family-available .family-button{min-height:42px;padding:9px 15px;font-size:13px;color:#bc6c1c;border-color:#e8bd8e}
+.family-search{margin-top:28px}
+.family-available-list{max-height:350px}
+.family-signin .family-button{min-width:230px}
+@media(max-width:760px){
+  .family-members-card .family-section-heading{align-items:flex-start;flex-direction:column;gap:17px;padding:22px}
+  .family-members-card .family-section-heading .family-button{align-self:flex-start}
+  .family-member,.family-table-labels{grid-template-columns:minmax(0,1fr) 105px 105px;gap:10px}
+  .family-table-labels{padding-left:20px;padding-right:20px}
+  .family-member-list{padding:0 20px}
+  .family-member-person{gap:9px}
+  .family-member-avatar{width:34px;height:34px;font-size:11px}
+  .family-button.remove{font-size:11px;padding:8px 10px;gap:6px}
+  .family-add-panel{align-items:flex-start;flex-direction:column;gap:15px;padding:22px}
+  .family-leave p{max-width:310px}
+}
+@media(max-width:540px){
+  .family-table-labels{display:none}
+  .family-member{grid-template-columns:1fr auto;padding:20px 0;row-gap:15px}
+  .family-member-person{grid-column:1/-1;gap:12px}
+  .family-member-avatar{width:40px;height:40px;font-size:13px}
+  .family-member-identity{flex-basis:auto}
+  .family-role{margin-left:52px;font-size:11px}
+  .family-member-controls{grid-column:2;grid-row:2}
+  .family-no-action{font-size:11px}
+  .family-summary .family-button{margin:8px 0 0;width:100%}
+  .family-leave{padding:20px;align-items:flex-start;flex-direction:column;gap:16px}
+  .family-leave>.family-button{min-height:44px;font-size:13px}
+  .family-setup-tabs button{font-size:12px;padding:11px 7px;gap:7px}
+  .family-create-card,.family-join-card{padding:22px 18px}
+  .family-create-card form .family-button{align-self:stretch;width:100%}
+  .family-available .family-button{font-size:12px;padding:8px 11px}
+}

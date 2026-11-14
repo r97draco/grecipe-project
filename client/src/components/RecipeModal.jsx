@@ -1,118 +1,16 @@
-import React, { useState } from "react";
-import "../css/RecipeModal.css";
+import { useState } from 'react';
+import Modal from 'react-modal';
+import { FiArrowRight, FiCheck, FiShoppingBag, FiX } from 'react-icons/fi';
+import '../css/RecipeModal.css';
 
-export default function RecipeModal({ recipe }) {
-  const [showModal, setShowModal] = useState(false);
-
-  return (
-    <>
-      <button
-        className="w-full px-6 py-3 mb-1 mr-1 text-sm font-bold text-white uppercase transition-all duration-150 ease-linear rounded shadow outline-none bg-primary-500 active:bg-primary-900 hover:shadow-lg focus:outline-none"
-        type="button"
-        onClick={() => setShowModal(true)}
-      >
-        View Recipe
-      </button>
-
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-gray-900 bg-opacity-50">
-          <div className="w-full max-w-5xl mx-auto bg-white rounded-lg shadow-lg max-h-[90vh] overflow-auto">
-            <div className="flex flex-col w-full border-0 rounded-lg">
-              <div className="flex items-start justify-between p-5 border-b border-gray-200 border-solid rounded-t bg-gradient-to-r from-primary-500 to-primary-900">
-                <h3 className="text-2xl font-semibold text-white">
-                  {recipe.title}
-                </h3>
-                <button
-                  className="text-white hover:text-gray-300 focus:outline-none"
-                  onClick={() => setShowModal(false)}
-                >
-                  <svg
-                    className="w-6 h-6"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M6 18L18 6M6 6l12 12"
-                    />
-                  </svg>
-                </button>
-              </div>
-              <div className="flex-auto p-6">
-                <div className="mb-6">
-                  <img
-                    src={recipe.image}
-                    alt={recipe.title}
-                    className="rounded-lg shadow-lg centered-image" // Apply centered-image class here
-                  />
-                </div>
-                <div>
-                  <strong className="text-lg">Used Ingredients:</strong>
-                  <ul className="pl-5 list-disc">
-                    {recipe.usedIngredients.map((ingredient, index) => (
-                      <li
-                        key={index}
-                        className="flex items-center p-4 my-2 bg-gray-100 rounded-lg"
-                      >
-                        <img
-                          src={ingredient.image}
-                          alt={ingredient.name}
-                          className="w-8 h-8 mr-2 rounded-full"
-                        />
-                        <span>{ingredient.original}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-
-                <div className="mt-6">
-                  <strong className="text-lg">Missed Ingredients:</strong>
-                  <ul className="pl-5 list-disc">
-                    {recipe.missedIngredients.map((ingredient, index) => (
-                      <li
-                        key={index}
-                        className="flex items-center p-4 my-2 bg-gray-100 rounded-lg"
-                      >
-                        <img
-                          src={ingredient.image}
-                          alt={ingredient.name}
-                          className="w-8 h-8 mr-2 rounded-full"
-                        />
-                        <span>{ingredient.original}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-
-                {recipe.unusedIngredients && (
-                  <div className="mt-6">
-                    <strong className="text-lg">Unused Ingredients:</strong>
-                    <ul className="pl-5 list-disc">
-                      {recipe.unusedIngredients.map((ingredient, index) => (
-                        <li
-                          key={index}
-                          className="flex items-center p-4 my-2 bg-gray-100 rounded-lg"
-                        >
-                          <img
-                            src={ingredient.image}
-                            alt={ingredient.name}
-                            className="w-8 h-8 mr-2 rounded-full"
-                          />
-                          <span>{ingredient.original}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-    </>
-  );
+function IngredientList({title,items=[],type}) {
+  return <section className={`recipe-detail-list ${type}`}><h3>{type==='have'?<FiCheck/>:<FiShoppingBag/>}{title}<span>{items.length}</span></h3>{items.length ? <ul>{items.map((item,index)=><li key={`${item.id || item.name}-${index}`}><span className="recipe-ingredient-dot"/>{item.original || item.name}</li>)}</ul> : <p>{type==='have' ? 'No matching ingredients listed.' : 'You have all the listed ingredients.'}</p>}</section>;
+}
+export default function RecipeModal({recipe}) {
+  const [open,setOpen]=useState(false);
+  return <><button className="recipe-button secondary recipe-view-button" onClick={()=>setOpen(true)}>View ingredients<FiArrowRight/></button><Modal isOpen={open} onRequestClose={()=>setOpen(false)} appElement={document.getElementById('root')} className="recipe-detail-dialog" overlayClassName="recipe-detail-overlay" contentLabel={`Ingredients for ${recipe.title}`}>
+    <header className="recipe-detail-heading"><div><span>INGREDIENT CHECKLIST</span><h2>{recipe.title}</h2></div><button onClick={()=>setOpen(false)} aria-label="Close recipe details"><FiX/></button></header>
+    <div className="recipe-detail-body">{recipe.image && <img className="recipe-detail-image" src={recipe.image} alt=""/>}<div className="recipe-detail-lists"><IngredientList title="Ingredients you have" items={recipe.usedIngredients || []} type="have"/><IngredientList title="What you still need" items={recipe.missedIngredients || []} type="need"/></div>{recipe.unusedIngredients?.length>0 && <details className="recipe-unused"><summary>Other ingredients you provided ({recipe.unusedIngredients.length})</summary><ul>{recipe.unusedIngredients.map((item,index)=><li key={index}>{item.original || item.name}</li>)}</ul></details>}</div>
+    <footer className="recipe-detail-footer"><p>Ingredient matches are based on your selected groceries.</p><button className="recipe-button primary" onClick={()=>setOpen(false)}>Done<FiCheck/></button></footer>
+  </Modal></>;
 }

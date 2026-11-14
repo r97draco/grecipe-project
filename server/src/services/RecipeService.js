@@ -3,11 +3,13 @@ const ApiError = require('../utils/ApiError');
 
 const SpoonacularService = {
   async searchRecipesByItems(ingredients, preferences) {
-    const apiKey = process.env.SPOONACULAR_API_KEY || '';
+    const apiKey = process.env.SPOONACULAR_API_KEY;
+    if (!apiKey) throw new ApiError(503, 'Recipe generation requires a Spoonacular API key');
+    if (!Array.isArray(ingredients) || !ingredients.length) throw new ApiError(400, 'Please provide ingredients');
     const apiUrl = 'https://api.spoonacular.com/recipes/findByIngredients';
     const queryParams = {
       apiKey,
-      ingredients: ingredients.join(','),
+      ingredients: ingredients.map(item => typeof item === 'string' ? item.trim() : item.name?.trim()).filter(Boolean).join(','),
       number:10,
       ...preferences,
     };
@@ -24,7 +26,8 @@ const SpoonacularService = {
   },
 
   async generateMealPlan(options) {
-    const apiKey = process.env.SPOONACULAR_API_KEY || '';
+    const apiKey = process.env.SPOONACULAR_API_KEY;
+    if (!apiKey) throw new ApiError(503, 'Recipe generation requires a Spoonacular API key');
     const apiUrl = 'https://api.spoonacular.com/recipes/mealplans/generate';
     const queryParams = {
       apiKey,

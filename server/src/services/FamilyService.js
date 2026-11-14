@@ -1,71 +1,36 @@
-const Family = require('../models/Family');
-const User = require('../models/User');
-
-const createFamily = async (familyData) => {
-  const newFamily = new Family(familyData);
-  await newFamily.save();
-  return newFamily;
-};
-
-const getFamilyById = async (familyId) => {
-  const family = await Family.findById(familyId).populate('members');
-  return family;
-};
-
-const findAll = async () => {
-  const families = await Family.find().populate('members');
-  return families;
-};
-
-const addMember = async (familyId, memberId) => {
-  // if family member are zero then make head true
-  const family = await Family.findById(familyId);
-  let head = false;
-  if (family.members.length === 0 || family.members === undefined) {
-    head = true;
-  }
-
-  const updatedFamily = await Family.findByIdAndUpdate(
-    familyId,
-    {
-      $addToSet: { members: memberId },
-    },
-    { new: true }
-  ).populate('members');
-  // logger.info("Addmember in FamilyService.js");
-
-  await User.findByIdAndUpdate(memberId, {
-    family: familyId,
-    isFamilyHead: head,
+const store = require('../database/sqlite');
+const ApiError = require('../utils/ApiError');
+function familyWithMembers(id) {
+  const family = store.get('families', id);
+  return family ? { ...family, members: store.all('users', 'family', id) } : null;
+}
+const createFamily = async data => store.transaction(() => {
+  const family = store.create('families', data);
+  const members = [...new Set([...(data.members || []), ...(data.userId ? [data.userId] : [])])];
+  members.forEach((id, index) => {
+    if (!store.get('users', id)) throw new ApiError(404, 'User not found');
+    store.update('users', id, { family: family._id, isFamilyHead: index === 0 });
   });
-
-  return updatedFamily;
-};
-
-const removeMember = async (familyId, memberId) => {
-  const updatedFamily = await Family.findByIdAndUpdate(
-    familyId,
-    {
-      $pull: { members: memberId },
-    },
-    { new: true }
-  ).populate('members');
-
-  await User.findByIdAndUpdate(memberId, { $unset: { family: '' } });
-
-  return updatedFamily;
-};
-
-const deleteFamilyById = async (familyId) => {
-  await Family.findByIdAndRemove(familyId);
-  await User.updateMany({ family: familyId }, { $unset: { family: '' } });
-};
-
-module.exports = {
-  createFamily,
-  getFamilyById,
-  findAll,
-  addMember,
-  removeMember,
-  deleteFamilyById,
-};
+  return familyWithMembers(family._id);
+});
+const getFamilyById = async id => familyWithMembers(id);
+const findAll = async () => store.all('families').map(f => familyWithMembers(f._id));
+const addMember = async (familyId, memberId) => store.transaction(() => {
+  const family = familyWithMembers(familyId);
+  if (!family) throw new ApiError(404, 'Family not found');
+  const user = store.get('users', memberId);
+  if (!user) throw new ApiError(404, 'User not found');
+  if (user.family !== familyId) store.update('users', memberId, { family: familyId, isFamilyHead: family.members.length === 0 });
+  return familyWithMembers(familyId);
+});
+const removeMember = async (familyId, memberId) => store.transaction(() => {
+  if (!store.get('families', familyId)) throw new ApiError(404, 'Family not found');
+  const user = store.get('users', memberId);
+  if (user?.family === familyId) store.update('users', memberId, { family: null, isFamilyHead: false });
+  return familyWithMembers(familyId);
+});
+const deleteFamilyById = async id => store.transaction(() => {
+  store.all('users', 'family', id).forEach(user => store.update('users', user._id, { isFamilyHead: false }));
+  store.remove('families', id);
+});
+module.exports = { createFamily, getFamilyById, findAll, addMember, removeMember, deleteFamilyById };

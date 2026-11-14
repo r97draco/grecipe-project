@@ -1,102 +1,52 @@
-const foodByName = require("../data/foodByName.json");
-
-// estimate expiration date to be two weeks from now
-let twoWeeksFromNow = new Date();
-twoWeeksFromNow.setDate(twoWeeksFromNow.getDate() + 14);
-twoWeeksFromNow = twoWeeksFromNow.toISOString();
-
-const invalidWords = ["of", "and"];
-
-const removeSpaces = (word) => {
-  return word.replace(/\s/g, "");
+const foodByName = require('../data/foodByName.json');
+const normalize = text => text.toLowerCase().replace(/[^a-z0-9\s]/g,' ').replace(/\s+/g,' ').trim();
+const singular = word => word.endsWith('ies') ? word.slice(0,-3)+'y' : word.endsWith('oes') ? word.slice(0,-2) : word.endsWith('s') && !word.endsWith('ss') ? word.slice(0,-1) : word;
+const aliases = new Map();
+// Use complete food names; partial dictionary aliases can turn “snow” into “snow crab”.
+for (const food of Object.values(foodByName)) {
+  const name = normalize(food.name);
+  if (name.length >= 3) aliases.set(name,{name:food.name,key:name});
+}
+const commonAliases = {
+  potato:'Potato', potatoes:'Potato', tomato:'Garden tomato', tomatoes:'Garden tomato',
+  banana:'Banana', bananas:'Banana', apple:'Apple', apples:'Apple', egg:'Eggs', eggs:'Eggs',
+  onion:'Garden onion', onions:'Garden onion', milk:'Milk (Cow)', bread:'Other bread',
+  'grn onion':'Green onion', 'chkn breast':'Chicken breast', 'bnls chicken':'Chicken',
 };
+for (const [alias,name] of Object.entries(commonAliases)) {
+  aliases.set(alias,{name,key:aliases.get(normalize(name))?.key || null});
+}
 
-const getMatchScore = (parsedWord, actualFoodName) => {
-  const parsedWordNoSpaces = removeSpaces(parsedWord);
-  const actualFoodNameNoSpaces = removeSpaces(actualFoodName);
+const ignored = /^(?:sub\s*total|total|tax|gst|pst|hst|cash|change|credit|debit|visa|mastercard|payment|balance|tender|savings|discount|coupon|loyalty|points|thank|welcome|receipt|store|cashier|register|transaction|date|time|tel|phone|www|https?)\b/i;
+const price = /\$?\d+[.,]\d{2}\s*[A-Z]?\s*$/i;
 
-  const absoluteScore =
-    (parsedWordNoSpaces.length / actualFoodNameNoSpaces.length) * 100;
-  let relativeScore = absoluteScore;
-
-  // if we find a match with a parsed word that is
-  // at least 5 letters long and an actual word that is
-  // at least 12 letters long, we can assume it's a good match
-  if (parsedWordNoSpaces.length >= 5 && actualFoodNameNoSpaces.length >= 12) {
-    relativeScore = Math.min(absoluteScore * 1.5, 100);
+exports.parseReceiptText = text => {
+  const items = [];
+  for (const original of String(text || '').split(/\r?\n/).slice(0,500)) {
+    const line = original.trim().slice(0,300);
+    if (!line || ignored.test(line) || /^[-=*\s\d.,/:]+$/.test(line)) continue;
+    let product = line.replace(price,'').trim();
+    const explicitQuantity = product.match(/^(\d{1,3})\s*[x@]\s+/i);
+    const quantity = explicitQuantity ? Number(explicitQuantity[1]) : 1;
+    if (explicitQuantity) product = product.slice(explicitQuantity[0].length);
+    product = product.replace(/^\d{4,14}\s+/,'').replace(/\s+\d+\s*(?:ml|kg|g|l|oz|lb|pk|ct)\b/gi,' ').trim();
+    const normalized = normalize(product);
+    if (!/[a-z]{3}/i.test(normalized)) continue;
+    const cleaned = normalized.replace(/\b(?:organic|org|fresh|large|small|medium|frozen|ea)\b/g,' ').replace(/\s+/g,' ').trim();
+    const words = cleaned.split(' ').map(singular).join(' ');
+    const food = aliases.get(normalized) || aliases.get(cleaned) || aliases.get(words);
+    // Keep plausible unknown product lines for review rather than silently dropping them.
+    if (!food && (!price.test(line) || product.length < 3 || product.length > 90)) continue;
+    items.push({
+      name:food?.name || product,
+      quantity:quantity > 0 ? quantity : 1,
+      quantitySource:explicitQuantity && quantity > 0 ? 'receipt' : 'unconfirmed',
+      expiresAt:null,
+      expirySource:'unknown',
+      fooDBKey:food?.key || null,
+      sourceLine:line,
+      matchType:food ? 'matched' : 'unmatched',
+    });
   }
-
-  return {
-    absolute: absoluteScore,
-    relative: relativeScore
-  };
-};
-
-const getAllSubstrings = (str) => {
-  const substrings = [];
-
-  for (let i = 0; i < str.length; i++) {
-    for (let j = i + 1; j <= str.length; j++) {
-      substrings.push(str.slice(i, j));
-    }
-  }
-
-  return substrings;
-};
-
-exports.parseReceiptText = (text) => {
-  const groceryItems = {};
-  const lines = text.split("\n");
-
-  for (const line of lines) {
-    const possibleMatches = getAllSubstrings(line);
-    const bestMatch = {
-      score: { absolute: 0 }
-    };
-    let isFoodAlreadyFound = false;
-
-    // check word on each line
-    for (let i = 0; i < possibleMatches.length; i++) {
-      const word = possibleMatches[i].trim().toLowerCase();
-
-      if (invalidWords.includes(word)) {
-        continue;
-      }
-
-      if (foodByName.hasOwnProperty(word)) {
-        const { name: foodName } = foodByName[word];
-
-        // go to next line if we already found this food
-        if (groceryItems.hasOwnProperty(foodName)) {
-          isFoodAlreadyFound = true;
-          groceryItems[foodName].quantity += 1;
-          break;
-        }
-
-        // update best match if absolute score is higher
-        const score = getMatchScore(word, foodName);
-        if (score.absolute > bestMatch.score.absolute) {
-          bestMatch.score = score;
-          bestMatch.foodName = foodName;
-          bestMatch.word = word;
-        }
-
-        // go to next line if exact match is found
-        if (score.absolute === 100) {
-          break;
-        }
-      }
-    }
-
-    if (!isFoodAlreadyFound && bestMatch.score.relative >= 50) {
-      groceryItems[bestMatch.foodName] = {
-        name: bestMatch.foodName,
-        expiresAt: twoWeeksFromNow,
-        quantity: 1,
-        fooDBKey: bestMatch.word
-      };
-    }
-  }
-
-  return Object.values(groceryItems);
+  return items;
 };

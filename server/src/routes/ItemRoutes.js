@@ -12,13 +12,14 @@ const { parseReceipt } = require('../controllers/ReceiptController');
 
 const authMiddleware = require('../middlewares/auth');
 
-const upload = multer({ dest: 'uploads/' });
+const upload = multer({ dest: 'uploads/', limits: { fileSize: 10 * 1024 * 1024 } });
 
 const inventoryRouter = express.Router();
+inventoryRouter.use(authMiddleware);
 
-inventoryRouter.get('/', authMiddleware, getItemsByUser);
-inventoryRouter.get('/family', authMiddleware, getItemsByFamily)
-inventoryRouter.post('/add', authMiddleware, createItems);
+inventoryRouter.get('/', getItemsByUser);
+inventoryRouter.get('/family', getItemsByFamily)
+inventoryRouter.post('/add', createItems);
 inventoryRouter.put('/update/:id', updateItem);
 inventoryRouter.delete('/delete/:id', deleteItem);
 inventoryRouter.post('/upload', upload.single('receipt'), parseReceipt);

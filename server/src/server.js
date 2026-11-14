@@ -1,5 +1,19 @@
 /* Import Statements */
 require('dotenv').config();
+if (Number(process.versions.node.split('.')[0]) >= 25) {
+  console.error('Use Node.js 24 for this project. Run nvm use or add /opt/homebrew/opt/node@24/bin to PATH.');
+  process.exit(1);
+}
+const requiredSettings = [
+  'FIREBASE_PROJECT_ID',
+  'FIREBASE_CLIENT_EMAIL',
+  'FIREBASE_PRIVATE_KEY',
+];
+const missingSettings = requiredSettings.filter((name) => !process.env[name]);
+if (missingSettings.length) {
+  console.error(`Cannot start the server. Set these values in server/.env: ${missingSettings.join(', ')}. See server/.env.example.`);
+  process.exit(1);
+}
 const app = require('./app');
 const connectDB = require('./config/connectDB');
 const logger = require('./config/logger');

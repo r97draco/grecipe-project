@@ -1,48 +1,22 @@
-const UserModel = require('../models/User');
+const store = require('../database/sqlite');
 const ApiError = require('../utils/ApiError');
-
-const createUser = async (userBody) => {
-  return UserModel.create(userBody);
-};
-
-const getUserById = async (id) => UserModel.findOne({ _id: id }).exec();
-
-const getUserByEmail = async (email) => UserModel.findOne({ email }).exec();
-
-const updateUserById = async (userId, updateBody) => {
-  const user = await getUserById(userId);
-  if (!user) {
-    throw new ApiError(404, 'User not found');
+const getUserById = async id => store.get('users', id);
+const getUserByEmail = async email => store.all('users', 'email', email)[0] || null;
+const createUser = async data => {
+  try { return store.create('users', data); }
+  catch (error) {
+    if (error.message.includes('UNIQUE constraint')) throw new ApiError(409, 'User already exists');
+    throw error;
   }
-  Object.assign(user, updateBody);
-  await user.save();
+};
+const updateUserById = async (id, data) => {
+  if (!store.get('users', id)) throw new ApiError(404, 'User not found');
+  return store.update('users', id, data);
+};
+const updateUserByIdForFamily = async (id, family) => updateUserById(id, { family, isFamilyHead: true });
+const deleteUserById = async id => {
+  const user = store.remove('users', id);
+  if (!user) throw new ApiError(404, 'User not found');
   return user;
 };
-
-const updateUserByIdForFamily = async (userId, familyId) => {
-  const updateData = { family: familyId };
-  return UserModel.findByIdAndUpdate(userId, updateData, { new: true });
-};
-
-const deleteUserById = async (userId) => {
-  const user = await getUserById(userId);
-  if (!user) {
-    throw new ApiError(404, 'User not found');
-  }
-  const result = await UserModel.deleteOne({
-    _id: userId,
-  });
-  if (result.n === 0) {
-    throw new ApiError(404, 'User not found');
-  }
-  return user;
-};
-
-module.exports = {
-  createUser,
-  getUserById,
-  getUserByEmail,
-  updateUserById,
-  deleteUserById,
-  updateUserByIdForFamily,
-};
+module.exports = { createUser, getUserById, getUserByEmail, updateUserById, updateUserByIdForFamily, deleteUserById };

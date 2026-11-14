@@ -1,5 +1,4 @@
 const familyService = require('../services/FamilyService');
-const userService = require('../services/UserService');
 
 const createFamily = async (req, res, next) => {
   const familyData = {
@@ -11,10 +10,6 @@ const createFamily = async (req, res, next) => {
   console.log('familyData', familyData);
   try {
     const family = await familyService.createFamily(familyData);
-    const user = await userService.updateUserByIdForFamily(
-      req.body.userId,
-      family._id
-    );
     res.status(201).json(family);
   } catch (err) {
     next(err);

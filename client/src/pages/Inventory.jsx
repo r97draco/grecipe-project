@@ -1,665 +1,125 @@
-import { useEffect, useState } from "react";
-import UploadReceipt from "../components/inventory/UploadReceipt";
-import AddItem from "../components/inventory/AddItem";
-import customFetch from "../utils/fetchWrapper";
-import { backendUrl } from "../App";
-import axios from "axios";
-import Spinner from "../components/Spinner";
-import { useContext } from "react";
-import { UserContext } from "../App";
-import "../css/Inventory.css";
-import {
-  Button,
-  IconButton,
-  Stack,
-  TextField,
-  Typography,
-} from "@mui/material";
-import { FiTrash2 } from "react-icons/fi";
-import { notify } from "../components/Nav";
-import Footer from "../components/Footer";
+import { useContext, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import Modal from 'react-modal';
+import { FiArrowRight, FiCheck, FiClock, FiEdit2, FiPackage, FiPlus, FiSave, FiSearch, FiTrash2, FiUsers, FiX } from 'react-icons/fi';
+import UploadReceipt from '../components/inventory/UploadReceipt';
+import AddEditItemModal from '../components/inventory/AddEditItemModal';
+import { UserContext, backendUrl } from '../App';
+import api from '../utils/authenticatedApi';
+import { notify } from '../components/Nav';
+import Footer from '../components/Footer';
+import '../css/Inventory.css';
 
-const Inventory = () => {
-  const [inventoryData, setInventoryData] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isTableLoading, setIsTableLoading] = useState(false);
-  const [filterValue, setFilterValue] = useState("");
-  const [sortBy, setSortBy] = useState("");
-  const [sortOrder, setSortOrder] = useState("asc");
-  const { user, setUser } = useContext(UserContext);
+function expiration(item) {
+  if (!item.expiresAt) return {days:Infinity,label:'Check packaging',date:'Not set'};
+  if (item.expirySource !== 'user') return {days:Infinity,label:'Date not verified — check packaging',date:'Needs review'};
+  const raw = item.expiresAt.slice(0,10);
+  const date = new Date(`${raw}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return {days:Infinity,label:'No date set',date:'—'};
+  const today = new Date(); today.setHours(0,0,0,0);
+  const days = Math.round((date - today) / 86400000);
+  return { days, date:date.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}), label:days < 0 ? 'Past date' : days === 0 ? 'Date is today' : days <= 3 ? `In ${days} ${days === 1 ? 'day' : 'days'}` : '' };
+}
+const keyOf = item => item._id || item._localId;
+const pending = item => item.isLocal || item.isEdited;
+
+export default function Inventory() {
+  const { user } = useContext(UserContext);
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [search, setSearch] = useState('');
+  const [sort, setSort] = useState('name');
+  const [filter, setFilter] = useState('all');
+  const [error, setError] = useState('');
+  const [revision, setRevision] = useState(0);
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [deleting, setDeleting] = useState(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const dirtyCount = items.filter(pending).length;
+  const useSoonCount = items.filter(item => expiration(item).days <= 3).length;
 
   useEffect(() => {
-    fetchInventory();
-  }, [user]);
+    let active = true;
+    setItems([]); setError('');
+    if (!user._id || !user.family) { setLoading(false); return; }
+    setLoading(true);
+    api.get(`${backendUrl}/api/item/family`,{params:{familyId:user.family}}).then(response => {
+      if (active) setItems(Array.isArray(response.data) ? response.data : []);
+    }).catch(error => { if (active) setError(error.response?.status === 401 ? 'Please sign in again to load your inventory.' : 'Couldn’t load your groceries. Please try again.'); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [user._id,user.family,revision]);
 
-  const fetchInventory = async () => {
-    setIsTableLoading(true);
-    const token = localStorage.getItem("self_care_token");
-    const res = await axios.get(`${backendUrl}/api/item/family`, {
-      params: { familyId: user.family },
-      headers: {
-        Authorization: token,
-      },
-    });
-    const items = res.data;
-    console.log("items", items);
-    if (Array.isArray(items)) {
-      setInventoryData(items);
-    }
+  useEffect(() => {
+    if (!dirtyCount) return;
+    const warn = event => { event.preventDefault(); event.returnValue = ''; };
+    window.addEventListener('beforeunload',warn);
+    return () => window.removeEventListener('beforeunload',warn);
+  }, [dirtyCount]);
 
-    setIsTableLoading(false);
+  const addItems = incoming => {
+    if (!incoming.length) { notify('No grocery items found. Try adding an item manually.','info'); return; }
+    setItems(current => [...current,...incoming.map(item => ({...item,_localId:crypto.randomUUID(),isLocal:true}))]);
+    notify(`${incoming.length} ${incoming.length === 1 ? 'item added' : 'items added'}. Review and save your changes.`,'info');
   };
-
-  const saveItemsToServer = async () => {
-    setIsLoading(true);
-
-    const token = localStorage.getItem("self_care_token");
-    const localInventory = inventoryData?.filter((item) => item.isLocal);
-
-    const response = await axios.post(
-      `${backendUrl}/api/item/add`,
-      {
-        items: localInventory,
-      },
-      {
-        params: { email: user.email },
-        headers: {
-          Authorization: token,
-        },
+  const submitItem = values => {
+    if (editing) setItems(current => current.map(item => keyOf(item) === keyOf(editing) ? {...item,...values,isEdited:!item.isLocal} : item));
+    else addItems([values]);
+    setEditorOpen(false); setEditing(null);
+  };
+  const save = async () => {
+    if (saving || !dirtyCount) return;
+    setSaving(true); setError('');
+    try {
+      const additions = items.filter(item => item.isLocal);
+      if (additions.length) {
+        const response = await api.post(`${backendUrl}/api/item/add`,{items:additions.map(({name,quantity,expiresAt,fooDBKey,expirySource}) => ({name,quantity,expiresAt:expiresAt || null,fooDBKey,expirySource}))},{params:{email:user.email}});
+        const saved = new Map(additions.map((item,index) => [keyOf(item),response.data[index]]));
+        setItems(current => current.map(item => saved.has(keyOf(item)) ? saved.get(keyOf(item)) : item));
       }
-    );
-    setIsLoading(false);
-
-    if (response?.status === 201) {
-      const newData = inventoryData.map((item) => ({
-        ...item,
-        ...(item.isLocal
-          ? {
-              _id: response?.data?.find((newItem) => item.name === newItem.name)
-                ?._id,
-            }
-          : {}),
-        isLocal: false,
-      }));
-
-      setInventoryData(newData);
-      notify("Inventory saved to Database", "success");
-    }
-  };
-
-  const updateLocalInventory = (items) => {
-    try {
-      const newData = [
-        ...inventoryData,
-        ...items?.map(({ name, quantity, expiresAt }) => ({
-          name,
-          quantity,
-          expiresAt,
-          isLocal: true,
-        })),
-      ];
-
-      setInventoryData(newData);
-      notify("Items added Locally", "info");
-    } catch (err) {
-      console.log(err);
-    }
-  };
-
-  const filteredInventoryData = inventoryData.filter((item) =>
-    item.name.toLowerCase().includes(filterValue.toLowerCase())
-  );
-
-  const sortedInventoryData = filteredInventoryData.sort((a, b) => {
-    if (sortBy === "name") {
-      const nameA = a.name.toLowerCase();
-      const nameB = b.name.toLowerCase();
-      if (nameA < nameB) return sortOrder === "asc" ? -1 : 1;
-      if (nameA > nameB) return sortOrder === "asc" ? 1 : -1;
-      return 0;
-    } else if (sortBy === "expiresAt") {
-      const dateA = new Date(a.expiresAt);
-      const dateB = new Date(b.expiresAt);
-      return sortOrder === "asc" ? dateA - dateB : dateB - dateA;
-    } else {
-      return 0;
-    }
-  });
-
-  const handleSort = (criteria) => {
-    if (sortBy === criteria) {
-      // Toggle order if sorting by the same criteria
-      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
-    } else {
-      // Set new sorting criteria and default to ascending order
-      setSortBy(criteria);
-      setSortOrder("asc");
-    }
-  };
-
-  const [refresh, setRefresh] = useState(false);
-
-  useEffect(() => {
-    console.log("Page Refreshed");
-    try {
-      const token = localStorage.getItem("self_care_token");
-      const email = user.email;
-
-      axios
-        .get(`${backendUrl}/api/user/getuser`, {
-          params: { email: email },
-          headers: { Authorization: `Bearer ${token}` },
-        })
-        .then((res) => {
-          if (res.status === 200) {
-            setUser(res.data);
-          }
-        });
-    } catch (signInError) {
-      console.error("Error during sign-in", signInError);
-    }
-  }, [refresh]);
-
-  return (
-    <div>
-      <section className="relative main-bg">
-        <div className="max-w-6xl col-span-1 px-4 mx-auto bg-white rounded-lg s sm:px-6 ">
-          <div className="pt-10 pb-12 md:pt-10 md:pb-20">
-            <div className="pb-12 text-center md:pb-16">
-              {!user.family ? (
-                <Family setRefresh={setRefresh} />
-              ) : (
-                <>
-                  <h1 className="mb-10 text-5xl font-extrabold tracking-tighter md:text-6xl leading-tighter">
-                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-500 to-blue-400">
-                      Inventory
-                    </span>
-                  </h1>
-                  <div style={{ width: "500px", margin: "0 auto" }}>
-                    <div
-                      style={{
-                        textAlign: "center",
-                        fontSize: "1.5rem",
-                        fontWeight: "bold",
-                        marginBottom: "20px",
-                      }}
-                    >
-                      Welcome, {user.userName}!
-                    </div>
-                    <FamilyInfo
-                      setRefresh={setRefresh}
-                      familyId={user.family}
-                      head={user.isFamilyHead}
-                    />
-                    <h2 className="mb-4 text-2xl font-semibold text-center">
-                      <span className="inline-block text-3xl text-transparent bg-clip-text bg-gradient-to-r from-yellow-500 to-blue-400">
-                        Items Info
-                      </span>
-                    </h2>
-                    <div
-                      className="flex items-center justify-between mb-10"
-                      style={{ width: "100%" }}
-                    >
-                      <UploadReceipt updateInventory={updateLocalInventory} />
-                      <button
-                        className="px-5 py-5 font-bold text-white bg-orange-500 rounded-full hover:bg-orange-600 s"
-                        style={{ height: "fit-content" }}
-                        onClick={saveItemsToServer}
-                        disabled={inventoryData.length === 0 || isLoading}
-                      >
-                        Save
-                      </button>
-                    </div>
-                    <div className="flex justify-center mb-5 space-x-4">
-                      <input
-                        type="text"
-                        placeholder="Filter by item name"
-                        value={filterValue}
-                        onChange={(e) => setFilterValue(e.target.value)}
-                        className="px-3 py-5 mb-0 border border-gray-300 rounded-md focus:outline-none focus:ring focus:ring-indigo-200"
-                      />
-                      <button
-                        onClick={() => handleSort("name")}
-                        className="px-4 py-2 font-bold text-white bg-orange-500 rounded-full hover:bg-orange-600 focus:outline-none focus:ring focus:ring-orange-400"
-                      >
-                        Sort by Name
-                      </button>
-                      <button
-                        onClick={() => handleSort("expiresAt")}
-                        className="px-4 py-2 font-bold text-white bg-orange-500 rounded-full hover:bg-orange-600 focus:outline-none focus:ring focus:ring-orange-400"
-                      >
-                        Sort by Expiry Date
-                      </button>
-                    </div>
-                    <InventoryTable
-                      inventoryData={sortedInventoryData}
-                      setInventoryData={setInventoryData}
-                    />
-                    {isTableLoading ? (
-                      <div className="mt-4">
-                        <Spinner />
-                      </div>
-                    ) : null}
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      </section>
-      <Footer />
-    </div>
-  );
-};
-
-const FamilyInfo = ({ setRefresh, familyId, head }) => {
-  const [familyData, setFamilyData] = useState(null);
-  const userContext = useContext(UserContext);
-  useEffect(() => {
-    const getFamilyData = async () => {
-      try {
-        const response = await axios.get(
-          `${backendUrl}/api/family/${familyId}`,
-          {
-            headers: {
-              Authorization: localStorage.getItem("self_care_token"),
-            },
-          }
-        );
-        setFamilyData(response.data);
-      } catch (error) {
-        console.error("Error getting family data:", error.response.data);
+      for (const item of items.filter(item => item.isEdited && !item.isLocal)) {
+        const { name,quantity,expiresAt,expirySource } = item;
+        const response = await api.put(`${backendUrl}/api/item/update/${item._id}`,{name,quantity,expiresAt:expiresAt || null,expirySource});
+        setItems(current => current.map(row => row._id === item._id ? response.data : row));
       }
-    };
-    getFamilyData();
-  }, [familyId]);
-
-  //url structure /api/family/updatefamily/:familyId
-
-  const deleteMember = async (memberId) => {
-    console.log("memberId", memberId);
+      notify('Inventory saved. Your family can see the updates.','success');
+    } catch (error) { setError(error.response?.status === 401 ? 'Please sign in again before saving.' : 'Some changes couldn’t be saved. Your remaining edits are still here; try saving again.'); }
+    finally { setSaving(false); }
+  };
+  const deleteItem = async () => {
+    if (deleteBusy) return;
+    setDeleteBusy(true);
     try {
-      await axios.put(
-        `${backendUrl}/api/family/updatefamily/${familyId}`,
-        {
-          action: "remove",
-          memberId,
-        },
-        {
-          headers: {
-            Authorization: localStorage.getItem("self_care_token"),
-          },
-        }
-      );
-      const updatedFamily = await axios.get(
-        `${backendUrl}/api/family/${familyId}`,
-        {
-          headers: {
-            Authorization: localStorage.getItem("self_care_token"),
-          },
-        }
-      );
-      setFamilyData(updatedFamily.data);
-      setRefresh((prev) => !prev);
-      notify("Member Left successfully", "success");
-    } catch (error) {
-      console.error("Error deleting member:", error.response.data);
-      notify("Error deleting member", "error");
-    }
+      if (!deleting.isLocal) await api.delete(`${backendUrl}/api/item/delete/${deleting._id}`);
+      setItems(current => current.filter(item => keyOf(item) !== keyOf(deleting)));
+      setDeleting(null); notify('Item removed.','success');
+    } catch { notify('Couldn’t remove the item. Please try again.','error'); }
+    finally { setDeleteBusy(false); }
   };
+  const visible = items.filter(item => item.name.toLowerCase().includes(search.toLowerCase()) && (filter === 'all' || (filter === 'soon' ? expiration(item).days <= 3 : pending(item))))
+    .sort((a,b) => sort === 'expiry' ? expiration(a).days - expiration(b).days : sort === 'quantity' ? (b.quantity || 0) - (a.quantity || 0) : sort === 'name-desc' ? b.name.localeCompare(a.name) : a.name.localeCompare(b.name));
 
-  if (false) {
-    return (
-      <div className="mb-10">
-        {familyData ? (
-          <>
-            <h2 className="mb-4 text-2xl font-semibold text-center">
-              <span className="inline-block text-3xl text-transparent bg-clip-text bg-gradient-to-r from-yellow-500 to-blue-400">
-                Family Info
-              </span>
-            </h2>
-            <div className="mb-4">
-              <p className="font-semibold">Family Name:</p>
-              <p>{familyData.name}</p>
-            </div>
-            <div className="mb-4 text-center">
-              {" "}
-              {/* Add text-center className here */}
-              <p className="font-semibold">Members:</p>
-              <ul className="inline-block">
-                {" "}
-                {/* Add inline-block className here */}
-                {familyData.members.map((member) => (
-                  <li key={member._id} className="flex items-center">
-                    <span className="mr-2">{member.userName}</span>
-                    {member._id === userContext.user._id && (
-                      <IconButton
-                        variant="contained"
-                        color="error"
-                        onClick={() => deleteMember(member._id)}
-                      >
-                        <FiTrash2 />
-                      </IconButton>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </>
-        ) : (
-          <p>Loading family data...</p>
-        )}
-      </div>
-    );
-  }
-
-  return (
-    <div className="mb-10">
-      {familyData ? (
-        <>
-          <h2 className="mb-4 text-2xl font-semibold text-center">
-            <span className="inline-block text-3xl text-transparent bg-clip-text bg-gradient-to-r from-yellow-500 to-blue-400">
-              Family Info
-            </span>
-          </h2>
-          <div className="mb-4">
-            <div className="flex flex-row justify-between px-10">
-              <Button className="font-bold text-black">
-                {familyData.name}'s Family
-              </Button>
-              {userContext.user.isFamilyHead ? (
-                <Button className="font-bold">You are Head</Button>
-              ) : (
-                <Button className="font-bold">You are Member</Button>
-              )}
-            </div>
-            <table className="w-full text-sm text-left text-gray-500 rtl:text-center dark:text-gray-400">
-              <thead className="text-xs text-center text-gray-700 uppercase bg-gray-100 dark:bg-gray-700 dark:text-gray-400">
-                <tr>
-                  <th scope="col" className="px-6 py-3 rounded-s-lg">
-                    Member name
-                  </th>
-                  <th scope="col" className="px-6 py-3 rounded-s-lg"></th>
-                  <th scope="col" className="px-6 py-3 rounded-e-lg">
-                    Action
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="text-center">
-                {familyData.members.map(
-                  (member) =>
-                    (
-                      <tr
-                        className="bg-white dark:bg-gray-800"
-                        key={member._id}
-                      >
-                        <th
-                          scope="row"
-                          className="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white"
-                        >
-                          {member.userName}
-                        </th>
-                        <td className="px-6 py-4"></td>
-                        <td className="px-6 py-4">
-                          {head && (
-                            <Button
-                              variant="contained"
-                              color="error"
-                              onClick={() => deleteMember(member._id)}
-                            >
-                              Remove
-                              <FiTrash2 size={22} />
-                            </Button>
-                          )}
-                          {/* if not head then can leave the family */}
-                          {!head && (
-                            <Button
-                              variant="contained"
-                              color="error"
-                              onClick={() => deleteMember(member._id)}
-                              disabled={member._id !== userContext.user._id}
-                            >
-                              Remove
-                              <FiTrash2 size={22} />
-                            </Button>
-                          )}
-                        </td>
-                      </tr>
-                    ) || <p>No members</p>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </>
-      ) : (
-        <p>Loading family data...</p>
-      )}
-    </div>
-  );
-};
-
-const Family = ({ setRefresh }) => {
-  const [familyName, setFamilyName] = useState("");
-  const [familyIdToJoin, setFamilyIdToJoin] = useState("");
-  const [userId, setUserId] = useState(""); // Assuming you have a way to get the current user's ID
-
-  const userContext = useContext(UserContext);
-  useEffect(() => {
-    console.log("user", userContext.user);
-    setUserId(userContext.user._id);
-  }, [userContext.user]);
-
-  const handleCreateFamily = async () => {
-    try {
-      // await axios.post("/createfamily", {
-      await axios.post(
-        `${backendUrl}/api/family/createfamily`,
-        {
-          name: familyName,
-          members: [userContext.user._id],
-          isFamilyHead: true,
-          userId,
-        },
-        {
-          headers: {
-            Authorization: localStorage.getItem("self_care_token"),
-          },
-        }
-      );
-      setFamilyName("");
-      console.log("Created Family");
-      notify("Family created successfully", "success");
-      setRefresh((prev) => !prev);
-    } catch (error) {
-      notify("Error creating family", "error");
-      if (error.response.status === 401) {
-        notify("Please login to create a family", "warning");
-      }
-      console.error("Error creating family:", error.response.data);
-    }
-  };
-
-  const [families, setFamilies] = useState([]);
-  const getAllFamilies = async () => {
-    try {
-      const response = await axios.get(
-        `${backendUrl}/api/family/getallfamilies`,
-        {
-          headers: {
-            Authorization: localStorage.getItem("self_care_token"),
-          },
-        }
-      );
-      console.log("Families:", response.data);
-      setFamilies(response.data);
-    } catch (error) {
-      console.error("Error getting families:", error.response.data);
-    }
-  };
-
-  const handleJoinFamily = async (familyId) => {
-    try {
-      await axios.put(
-        `${backendUrl}/api/family/updatefamily/${familyId}`,
-        {
-          action: "add",
-          memberId: userId,
-        },
-        {
-          headers: {
-            Authorization: localStorage.getItem("self_care_token"),
-          },
-        }
-      );
-      setRefresh((prev) => !prev);
-      notify("Joined family successfully", "success");
-    } catch (error) {
-      console.error("Error joining family:", error.response.data);
-      notify("Error joining family", "error");
-    }
-  };
-
-  useEffect(() => {
-    getAllFamilies();
-  }, []);
-
-  return (
-    <Stack spacing={3} sx={{ width: "100%", maxWidth: 500, margin: "auto" }}>
-      <h1 className="mb-10 text-5xl font-extrabold tracking-tighter md:text-6xl leading-tighter">
-        <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-500 to-blue-400">
-          Family
-        </span>
-      </h1>
-
-      {/* Form for creating a new family */}
-      <TextField
-        label="Family Name"
-        variant="outlined"
-        value={familyName}
-        onChange={(e) => setFamilyName(e.target.value)}
-        fullWidth
-      />
-
-      <Button
-        variant="contained"
-        onClick={handleCreateFamily}
-        disabled={familyName === ""}
-        fullWidth
-      >
-        Create Family
-      </Button>
-
-      {/* Form for joining an existing family by ID */}
-      <Typography variant="h6" gutterBottom>
-        Join a Family
-      </Typography>
-      {/* Render table with family and option to join */}
-      <table className="w-full text-sm text-left text-gray-500 rtl:text-center dark:text-gray-400">
-        <thead className="text-xs text-center text-gray-700 uppercase bg-gray-100 dark:bg-gray-700 dark:text-gray-400">
-          <tr>
-            <th scope="col" className="px-6 py-3 rounded-s-lg">
-              Family Name
-            </th>
-            <th scope="col" className="px-6 py-3 rounded-e-lg">
-              Action
-            </th>
-          </tr>
-        </thead>
-        <tbody className="text-center">
-          {families.map((family) => (
-            <tr className="bg-white dark:bg-gray-800" key={family._id}>
-              <td className="px-6 py-4 font-medium text-gray-900 dark:text-white whitespace-nowrap">
-                {family.name}
-              </td>
-              <td className="px-6 py-4">
-                <Button
-                  variant="contained"
-                  color="primary"
-                  onClick={() => handleJoinFamily(family._id)}
-                >
-                  Join
-                </Button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-
-      {/* {familyList} */}
-    </Stack>
-  );
-};
-
-export default Inventory;
-
-const InventoryTable = ({ inventoryData, setInventoryData }) => {
-  const addItem = async (newItem) => {
-    const itemExists = inventoryData?.find(
-      (item) => item.name === newItem.name
-    );
-
-    if (!itemExists) {
-      const newData = [...inventoryData, { ...newItem, isLocal: true }];
-      setInventoryData(newData);
-    }
-    notify("Item added successfully LOCALLY", "success");
-  };
-
-  const deleteItem = async (index) => {
-    const item = inventoryData[index];
-
-    if (!item.isLocal) {
-      await customFetch(`/item/delete/${item._id}`, {
-        method: "DELETE",
-      });
-    }
-
-    const newData = inventoryData?.filter((item, i) => i !== index);
-    setInventoryData(newData);
-    notify("Item deleted successfully", "success");
-  };
-
-  return (
-    <div className="w-full max-w-lg rounded-lg shadow-md bg-gray-50 dark:bg-gray-700">
-      <div className="flex flex-row justify-between px-2 py-4 mx-2">
-        <p className="flex items-center flex-grow-0 font-bold text-black text-md dark:text-white ">
-          Items
-          <span className="ml-2 text-sm text-gray-500 dark:text-gray-300 dark:text-white">
-            {inventoryData ? inventoryData.length : "0"}
-          </span>
-        </p>
-
-        <AddItem addItemToStore={addItem} />
-      </div>
-      <ul>
-        {inventoryData &&
-          inventoryData?.length > 0 &&
-          inventoryData?.map((item, index) => (
-            <li
-              className="flex items-center justify-between py-3 text-gray-600 border-b-2 border-gray-100 dark:text-gray-200 dark:border-gray-800"
-              key={item._id || index}
-            >
-              <div className="flex items-center justify-start text-sm">
-                <span className="mx-4 text-sm font-medium">{index + 1}</span>
-                <span className="text-sm font-medium">{item.name}</span>
-              </div>
-              <div className="flex items-center">
-                <span className="mx-4 text-sm font-medium">
-                  {/* If expiry date exists add or just put todays date */}
-                  {item.expiresAt ? item.expiresAt : new Date().toDateString()}
-                </span>
-                <button
-                  className="flex items-center justify-center w-5 h-5 mx-4 text-gray-500 rounded-full hover:text-red-500 hover:bg-gray-100 dark:hover:bg-gray-800"
-                  onClick={() => deleteItem(index)}
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512">
-                    <path d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64S14.3 96 32 96H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z" />
-                  </svg>
-                </button>
-              </div>
-            </li>
-          ))}
-      </ul>
-    </div>
-  );
-};
+  return <>
+    <section className="inventory-page main-bg"><div className="inventory-shell">
+      <header className="inventory-heading"><h1>Inventory</h1><p>Keep track of your groceries and use what you have.</p></header>
+      {!user._id ? <section className="inventory-card inventory-empty"><span className="inventory-empty-icon"><FiPackage/></span><h2>Your shared pantry</h2><p>Please sign in using Join to manage your family and groceries.</p><Link className="inventory-button primary" to="/family">Get started<FiArrowRight/></Link></section> : !user.family ? <section className="inventory-card inventory-empty"><span className="inventory-empty-icon"><FiUsers/></span><h2>Set up your shared inventory</h2><p>Create or join a family to keep your groceries in one place.</p><Link className="inventory-button primary" to="/family">Go to Family<FiArrowRight/></Link></section> : <>
+        <div className="inventory-context"><span><FiUsers/>Shared with your family</span><Link to="/family">Manage family<FiArrowRight/></Link></div>
+        <div className="inventory-stats" aria-label="Inventory overview"><div><FiPackage/><span><strong>{loading ? '—' : items.length}</strong>Total items</span></div><div className={useSoonCount ? 'needs-attention' : ''}><FiClock/><span><strong>{loading ? '—' : useSoonCount}</strong>Use soon / past date</span></div><div><FiSave/><span><strong>{dirtyCount}</strong>Unsaved changes</span></div></div>
+        {error && <div className="inventory-alert" role="alert"><span>{error}</span>{!dirtyCount && <button onClick={() => setRevision(value => value+1)}>Try again</button>}</div>}
+        <section className="inventory-card inventory-list-card">
+          <div className="inventory-card-heading"><div><h2>Your groceries</h2><p>Add items manually or scan a receipt, then save your changes.</p></div><div className="inventory-add-actions"><UploadReceipt updateInventory={addItems} disabled={saving || loading}/><button className={`inventory-button ${dirtyCount ? 'secondary' : 'primary'}`} onClick={() => {setEditing(null);setEditorOpen(true);}} disabled={saving || loading}><FiPlus/>Add item</button></div></div>
+          <div className="inventory-tools"><label className="inventory-search"><FiSearch/><input aria-label="Search groceries" placeholder="Search items" value={search} onChange={event => setSearch(event.target.value)}/>{search && <button onClick={() => setSearch('')} aria-label="Clear search"><FiX/></button>}</label><label className="inventory-sort">Sort by<select value={sort} onChange={event => setSort(event.target.value)}><option value="name">Name: A–Z</option><option value="name-desc">Name: Z–A</option><option value="expiry">Expiry: soonest</option><option value="quantity">Quantity: highest</option></select></label></div>
+          <div className="inventory-list-tabs" aria-label="Filter groceries">{[['all','All items',items.length],['soon','Use soon',useSoonCount],['pending','Unsaved',dirtyCount]].map(([value,label,count]) => <button key={value} aria-pressed={filter === value} onClick={() => setFilter(value)}>{label}<span>{count}</span></button>)}</div>
+          {dirtyCount > 0 && <div className="inventory-save-bar" role="status"><span><FiSave/><strong>{dirtyCount} {dirtyCount === 1 ? 'change' : 'changes'} to save</strong><small>Only saved items are shared with your family.</small></span><button className="inventory-button primary" onClick={save} disabled={saving}><FiCheck/>{saving ? 'Saving…' : 'Save changes'}</button></div>}
+          {loading ? <div className="inventory-empty" role="status">Loading your groceries…</div> : !visible.length ? <div className="inventory-empty"><span className="inventory-empty-icon">{items.length ? <FiSearch/> : <FiPackage/>}</span><h3>{items.length ? 'No items to show' : 'Your pantry is ready to fill'}</h3><p>{items.length ? 'Try a different search or choose another filter.' : 'Use Add item or Upload receipt above to get started.'}</p>{items.length > 0 && <button className="inventory-button secondary" onClick={() => {setSearch('');setFilter('all');}}>Show all items</button>}</div> : <div className="inventory-table"><div className="inventory-columns" aria-hidden="true"><span>Item</span><span>Quantity</span><span>Package date</span><span>Actions</span></div><ul>{visible.map(item => { const expiry = expiration(item); return <li className="inventory-row" key={keyOf(item)}><div className="inventory-item-name"><strong>{item.name}</strong>{pending(item) && <span className="inventory-draft">{item.isLocal ? 'New · unsaved' : 'Edited · unsaved'}</span>}</div><div className="inventory-quantity"><span className="inventory-mobile-label">Qty</span>{item.quantity ?? '—'}</div><div className="inventory-expiry"><span>{expiry.date}</span>{expiry.label && <small className={expiry.days < 0 ? 'expired' : expiry.days <= 3 ? 'soon' : ''}>{expiry.label}</small>}</div><div className="inventory-row-actions"><button className="inventory-icon-button" aria-label={`Edit ${item.name}`} title="Edit item" disabled={saving} onClick={() => {setEditing(item);setEditorOpen(true);}}><FiEdit2/><span>Edit</span></button><button className="inventory-icon-button remove" aria-label={`Remove ${item.name}`} title="Remove item" disabled={saving} onClick={() => setDeleting(item)}><FiTrash2/><span>Remove</span></button></div></li>; })}</ul></div>}
+          <div className="inventory-list-footer"><span>{visible.length} of {items.length} items</span><span>{loading ? 'Loading…' : error ? 'Check the message above' : dirtyCount ? 'Review your changes before saving' : <><FiCheck/>All changes saved</>}</span></div>
+        </section>
+        <div className="inventory-next"><FiPackage/><p>Ready to cook? Find recipes using what’s in your inventory.</p><Link to="/recipe">Find recipes<FiArrowRight/></Link></div>
+      </>}
+    </div></section><Footer/>
+    <AddEditItemModal isOpen={editorOpen} isEdit={!!editing} prevItem={editing} closeModal={() => {setEditorOpen(false);setEditing(null);}} addItemToStore={submitItem}/>
+    {deleting && <Modal isOpen onRequestClose={() => { if (!deleteBusy) setDeleting(null); }} appElement={document.getElementById('root')} className="inventory-dialog" overlayClassName="inventory-dialog-backdrop" contentLabel="Remove grocery item"><h2 id="inventory-delete-title">Remove {deleting.name}?</h2><p>{deleting.isLocal ? 'This unsaved item will be discarded.' : 'This item will be removed from your family’s shared inventory.'}</p><div className="inventory-dialog-actions"><button className="inventory-button secondary" autoFocus onClick={() => setDeleting(null)} disabled={deleteBusy}>Cancel</button><button className="inventory-button danger" onClick={deleteItem} disabled={deleteBusy}><FiTrash2/>{deleteBusy ? 'Removing…' : 'Remove item'}</button></div></Modal>}
+  </>;
+}

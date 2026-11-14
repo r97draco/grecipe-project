@@ -1,54 +1,9 @@
-const ItemModel = require('../models/Items');
-const ApiError = require('../utils/ApiError');
-
-const ItemsService = {
-  async createItem(itemData) {
-    try {
-      return await ItemModel.create(itemData);
-    } catch (error) {
-      throw new ApiError(500, 'Error creating grocery item');
-    }
-  },
-
-  async createItems(itemsData) {
-    try {
-      return await ItemModel.insertMany(itemsData);
-    } catch (error) {
-      throw new ApiError(500, 'Error creating grocery items', error.message);
-    }
-  },
-
-  async updateItem(id, updateData) {
-    try {
-      return await ItemModel.findByIdAndUpdate(id, updateData, { new: true });
-    } catch (error) {
-      throw new ApiError(500, 'Error updating grocery item');
-    }
-  },
-
-  async deleteItem(id) {
-    try {
-      return await ItemModel.findByIdAndDelete(id);
-    } catch (error) {
-      throw new ApiError(500, 'Error deleting grocery item');
-    }
-  },
-
-  async getItemsByUser(userId) {
-    try {
-      return await ItemModel.find({ userId });
-    } catch (error) {
-      throw new ApiError(500, 'Error retrieving grocery items');
-    }
-  },
-
-  async getItemsByFamily(familyId) {
-    try {
-      return await ItemModel.find({ familyId });
-    } catch (error) {
-      throw new ApiError(500, 'Error retrieving grocery items');
-    }
-  },
+const store = require('../database/sqlite');
+module.exports = {
+  async createItem(data) { return store.create('items', data); },
+  async createItems(data) { return store.transaction(() => data.map(item => store.create('items', item))); },
+  async updateItem(id, data) { return store.update('items', id, data); },
+  async deleteItem(id) { return store.remove('items', id); },
+  async getItemsByUser(familyId) { return store.all('items', 'familyId', familyId); },
+  async getItemsByFamily(familyId) { return store.all('items', 'familyId', familyId); },
 };
-
-module.exports = ItemsService;

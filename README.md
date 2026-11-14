@@ -8,7 +8,7 @@ A full-stack web Application to generate Recipes from receipts and save the data
 
 ### Prerequisites
 
-- Node.js (v14 or higher recommended)
+- Node.js 24 (see `.nvmrc`; Node.js 26 is incompatible with the current Firebase dependencies)
 - npm (v6 or higher recommended)
 
 ### Installation
@@ -54,6 +54,10 @@ npm run dev
 
 The server will be running on [http://localhost:9191](http://localhost:9191).
 
+### Local database
+
+The server creates a SQLite database at `server/data/grecipe.sqlite` automatically. No database installation or MongoDB account is required. This local data is excluded from Git. Set `SQLITE_PATH` in `server/.env` to override the file location. Existing MongoDB data is not imported automatically.
+
 ### Environment Variables
 
 Client .env :
@@ -67,7 +71,6 @@ Server `.env` (use your own credentials):
 ```
 PORT=9191
 NODE_ENV=development
-MONGO_URI=your_mongodb_connection_string
 SPOONACULAR_API_KEY=your_spoonacular_api_key
 FIREBASE_TYPE=service_account
 FIREBASE_PROJECT_ID=your_project_id

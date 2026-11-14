@@ -1,11 +1,11 @@
-import React, { useState, useContext, useEffect } from "react";
+import React, { useState, useContext, useEffect, useRef } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { onAuthStateChanged, signInWithPopup } from "firebase/auth";
 import { auth, provider } from "../firebase/firebase";
 import { useNavigate } from "react-router-dom";
-import { UserContext, backendUrl } from "../App";
+import { UserContext } from "../App";
 import { FaGoogle } from "react-icons/fa";
-import axios from "axios";
+import { loadOrCreateUser, userSyncErrorMessage } from "../utils/userSession";
 import Logo from "../Assets/Grecipe-Logo.svg";
 import { toast } from "react-toastify";
 
@@ -50,62 +50,28 @@ function Nav() {
   const navigate = useNavigate();
   const { user, setUser } = useContext(UserContext);
 
-  useEffect(() => {
-    console.log(user);
-  }, [user]);
+  const signingIn = useRef(false);
 
   const signIn = async () => {
+    if (signingIn.current) return;
+    signingIn.current = true;
     try {
       const result = await signInWithPopup(auth, provider);
-      const { displayName: userName, email, photoURL } = result.user;
       const token = await result.user.getIdToken();
-      console.log(token);
       localStorage.setItem("self_care_token", token);
-
-      axios
-        .get(`${backendUrl}/api/user/getuser`, {
-          params: { email: email },
-          headers: { Authorization: `Bearer ${token}` },
-        })
-        .then(async (res) => {
-          if (res.status === 200 || res.status === 204) {
-            console.log("User data fetched successfully", res.data);
-            setUser(res.data);
-            notify("User logged in successfully", "success");
-            navigate("/inventory");
-          }
-        })
-        .catch(async (error) => {
-          console.log("User doesn't exist, creating user...");
-          try {
-            const createUserResponse = await axios.post(
-              `${backendUrl}/api/user/createuser`,
-              {
-                userName,
-                email,
-                photoURL,
-              },
-              {
-                headers: { Authorization: `Bearer ${token}` },
-              }
-            );
-            if (createUserResponse.status === 201) {
-              console.log("User created successfully", createUserResponse.data);
-              notify("User created successfully", "success");
-              setUser({ userName, email, photoURL }); // Adjust according to the actual response structure
-              navigate("/inventory");
-            }
-          } catch (createUserError) {
-            console.error("Error creating user", createUserError);
-            notify("Error creating user", "error");
-          }
-        });
-    } catch (signInError) {
-      console.error(
-        "Error text-transparent bg-clipduring sign-in",
-        signInError
-      );
-      notify("Error during sign-in", "error");
+      try {
+        const profile = await loadOrCreateUser(result.user, token);
+        setUser(profile);
+        notify("User logged in successfully", "success");
+        navigate("/inventory");
+      } catch (error) {
+        setUser({});
+        notify(userSyncErrorMessage(error), "error");
+      }
+    } catch (error) {
+      notify("Google sign-in failed. Please try again.", "error");
+    } finally {
+      signingIn.current = false;
     }
   };
 
@@ -122,39 +88,35 @@ function Nav() {
   };
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      const token = localStorage.getItem("self_care_token");
-      if (token)
-        try {
-          const token = await user.getIdToken();
-          const response = await axios.get(`${backendUrl}/api/user/getuser`, {
-            params: {
-              email: user.email,
-            },
-            headers: {
-              Authorization: token,
-            },
-          });
-
-          if (response.status === 200) {
-            console.log(response.data, "data");
-            setUser(response.data);
-          } else if (response.status === 409) {
-            console.log("Create an account!");
-          }
-        } catch (err) {
-          console.error(err);
-          console.log("user doesn't exist");
+    let active = true;
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (signingIn.current) return;
+      if (!firebaseUser) {
+        localStorage.removeItem("self_care_token");
+        setUser({});
+        return;
+      }
+      try {
+        const token = await firebaseUser.getIdToken();
+        if (!active) return;
+        localStorage.setItem("self_care_token", token);
+        const profile = await loadOrCreateUser(firebaseUser, token);
+        if (active) setUser(profile);
+      } catch (error) {
+        if (active) {
+          setUser({});
+          notify(userSyncErrorMessage(error), "error");
         }
-      else {
-        console.log("No user logged in");
       }
     });
-
-    return unsubscribe;
+    return () => {
+      active = false;
+      unsubscribe();
+    };
   }, [setUser]);
 
   const links = [
+    { to: "/family", title: "Family" },
     { to: "/inventory", title: "Inventory" },
     { to: "/recipe", title: "Recipe" },
   ];
@@ -166,9 +128,9 @@ function Nav() {
     >
       <div className="px-5 mx-auto max-w-8xl sm:px-6">
         <div className="flex items-center justify-between h-16 md:h-20">
-          <div className="flex-shrink-0 mr-4">
+          <div className="flex-shrink-0 mr-2 sm:mr-4">
             <Link className=" nav-logo-container" to={"/"}>
-              <img src={Logo} className="h-3/4" alt="" />
+              <img src={Logo} className="h-auto w-20 sm:w-28" alt="" />
             </Link>
           </div>
 
@@ -178,7 +140,7 @@ function Nav() {
                 <li key={link.to}>
                   <Link
                     to={link.to}
-                    className={`flex items-center text-lg font-medium font-inter px-5 py-3 transition duration-150 ease-in-out hover:text-gray-600 text-gray-700 ${
+                    className={`flex items-center text-xs sm:text-base font-medium font-inter px-2 sm:px-4 py-3 transition duration-150 ease-in-out hover:text-gray-600 text-gray-700 ${
                       isLinkActive(link.to) &&
                       "text-gray-900 underline-offset-4 underline"
                     }`}

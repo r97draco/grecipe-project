@@ -22,6 +22,7 @@ const updateUser = {
     userName: Joi.string(),
     photoURL: Joi.string(),
     family: Joi.string(),
+    familyId: Joi.string(),
     isFamilyHead: Joi.boolean(),
   }),
 

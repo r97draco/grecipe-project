@@ -1,10 +1,12 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 import { ReactTyped } from "react-typed";
 import BannerBackground from "../Assets/home-banner-background.png";
 import BannerImage from "../Assets/home-banner-image.png";
 import { FiArrowRight } from "react-icons/fi";
 
 const Home = () => {
+  const navigate = useNavigate();
   return (
     <div className="home-container">
       <div className="home-banner-container">
@@ -28,7 +30,7 @@ const Home = () => {
             />
           </h1>
 
-          <button className="secondary-button">
+          <button className="secondary-button" onClick={() => navigate("/inventory")}>
             Try it Now! <FiArrowRight />{" "}
           </button>
         </div>

@@ -12,7 +12,7 @@ const firebaseConfig = {
   apiKey: "AIzaSyD4VyxbY7_megK3sIK5JGdYMIBrc5gkh2A",
   authDomain: "grecipe-f4676.firebaseapp.com",
   projectId: "grecipe-f4676",
-  storageBucket: "grecipe-f4676.appspot.com",
+  storageBucket: "grecipe-f4676.firebasestorage.app",
   messagingSenderId: "1098159147877",
   appId: "1:1098159147877:web:ab7894bb3fc8f2de09af8c",
   measurementId: "G-GTNT1W4JF4",
