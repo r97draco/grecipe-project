@@ -1,0 +1,8 @@
+body {
+    background-color: var(--background);
+  }
+
+  .relative {
+    padding-top: 10rem;
+    padding-bottom: 12rem;
+  }
