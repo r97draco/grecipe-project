@@ -15,7 +15,7 @@ const authMiddleware = require('../middlewares/auth');
 const upload = multer({ dest: 'uploads/', limits: { fileSize: 10 * 1024 * 1024 } });
 
 const inventoryRouter = express.Router();
-inventoryRouter.use(authMiddleware);
+inventoryRouter.use(authMiddleware, require('../middlewares/profile'));
 
 inventoryRouter.get('/', getItemsByUser);
 inventoryRouter.get('/family', getItemsByFamily)

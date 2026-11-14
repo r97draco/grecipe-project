@@ -22,3 +22,9 @@
   font-weight: 400;
   font-display: swap;
 }
+
+.demo-banner{position:fixed;top:80px;left:0;right:0;z-index:25;display:flex;align-items:center;justify-content:center;gap:18px;background:#fff3df;border-bottom:1px solid #efd7b4;color:#a37335;padding:7px 15px;font-size:12px;line-height:1.5}
+.demo-banner button{text-decoration:underline;text-underline-offset:3px;font-weight:600}
+.demo-entry{margin-left:10px}
+@media(max-width:767px){.demo-banner{top:64px;font-size:11px;padding:7px 12px}}
+@media(max-width:480px){.demo-entry{display:flex;margin:12px auto 0;min-width:230px}}

@@ -1,6 +1,5 @@
 const userService = require('../services/UserService');
 const createUser = async (req, res, next) => {
-  console.log('Creating User Hit');
   try {
     const user = await userService.createUser({
       email: req.body.email,
@@ -14,9 +13,7 @@ const createUser = async (req, res, next) => {
 };
 
 const getUser = async (req, res, next) => {
-  console.log('Get User Hit');
   try {
-    console.log('req', req.query);
     const user = await userService.getUserByEmail(req.query.email);
     if (user) {
       res.status(200).json(user);

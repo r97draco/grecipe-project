@@ -6,6 +6,7 @@ const recipeRoutes = require('./RecipeRoutes');
 const itemRoutes = require('./ItemRoutes');
 
 const router = express.Router();
+router.use('/nutrition', require('./NutritionRoutes'));
 
 //Add routes
 router.use('/user', userRoutes);

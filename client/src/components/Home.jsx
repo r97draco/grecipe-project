@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useContext } from "react";
+import { UserContext } from "../App";
 import { useNavigate } from "react-router-dom";
 import { ReactTyped } from "react-typed";
 import BannerBackground from "../Assets/home-banner-background.png";
@@ -7,6 +8,7 @@ import { FiArrowRight } from "react-icons/fi";
 
 const Home = () => {
   const navigate = useNavigate();
+  const { user,startDemo,sessionLoading } = useContext(UserContext);
   return (
     <div className="home-container">
       <div className="home-banner-container">
@@ -30,8 +32,8 @@ const Home = () => {
             />
           </h1>
 
-          <button className="secondary-button" onClick={() => navigate("/inventory")}>
-            Try it Now! <FiArrowRight />{" "}
+          <button className="secondary-button" disabled={sessionLoading} onClick={() => {if(!user._id) startDemo();navigate("/inventory");}}>
+            {user._id ? "Open inventory" : "Try the demo"} <FiArrowRight />{" "}
           </button>
         </div>
         <div className="home-image-section">

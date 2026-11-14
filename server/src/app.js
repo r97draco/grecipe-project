@@ -14,12 +14,13 @@ const app = express();
 /* Configuring Cross-Origin Resource Sharing (CORS)*/
 app.use(
   cors({
-    origin: '*',
+    origin: process.env.CLIENT_ORIGIN ? process.env.CLIENT_ORIGIN.split(',').map(value=>value.trim()) : (process.env.NODE_ENV === 'production' ? false : '*'),
   })
 );
 
 /* Configuring the middleware for parsing incoming requests in different formats. */
-app.use(express.json());
+app.disable('x-powered-by');
+app.use(express.json({limit:'1mb'}));
 app.use(express.urlencoded({ extended: true }));
 app.use(
   bodyParser.urlencoded({
@@ -29,6 +30,7 @@ app.use(
 app.use(bodyParser.json());
 
 /* Root URL handler */
+app.get('/health', (req,res) => res.json({status:'ok'}));
 app.get('/', (req, res) => {
   console.log(`[GET /] - ${new Date().toISOString()}`);
   res.send('Server is Running!');

@@ -28,12 +28,12 @@ test('receipt requests without an image return a handled validation error', asyn
   await receipt.parseReceipt({}, {}, value => { error = value; });
   assert.equal(error.statusCode, 400);
 });
-test('receipt parsing does not invent expiration dates', () => {
+test('receipt parsing defaults to fourteen days ahead', () => {
   const NativeDate = Date;
   try {
     global.Date = class extends NativeDate { constructor(...args) { super(...(args.length ? args : ['2030-01-01T12:00:00Z'])); } };
     const result = parseReceiptText('potato');
     assert.ok(result.length);
-    assert.equal(result[0].expiresAt, null);
+    assert.equal(result[0].expiresAt, '2030-01-15');
   } finally { global.Date = NativeDate; }
 });

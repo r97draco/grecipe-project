@@ -1,0 +1,43 @@
+services:
+  - type: web
+    name: grecipe-api
+    runtime: node
+    plan: free
+    rootDir: server
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: 24.22.3
+      - key: NODE_ENV
+        value: production
+      - key: CLIENT_ORIGIN
+        sync: false
+      - key: FIREBASE_TYPE
+        value: service_account
+      - key: FIREBASE_PROJECT_ID
+        value: grecipe-f4676
+      - key: FIREBASE_CLIENT_EMAIL
+        sync: false
+      - key: FIREBASE_PRIVATE_KEY
+        sync: false
+      - key: SPOONACULAR_API_KEY
+        sync: false
+      - key: USDA_API_KEY
+        sync: false
+  - type: web
+    name: grecipe
+    runtime: static
+    rootDir: client
+    buildCommand: npm ci && npm run build
+    staticPublishPath: build
+    envVars:
+      - key: NODE_VERSION
+        value: 24.22.3
+      - key: REACT_APP_API_URL
+        sync: false
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html

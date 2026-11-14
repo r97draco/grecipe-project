@@ -27,6 +27,8 @@ const removeMember = async (familyId, memberId) => store.transaction(() => {
   if (!store.get('families', familyId)) throw new ApiError(404, 'Family not found');
   const user = store.get('users', memberId);
   if (user?.family === familyId) store.update('users', memberId, { family: null, isFamilyHead: false });
+  const remaining=store.all('users','family',familyId);
+  if(remaining.length&&!remaining.some(member=>member.isFamilyHead))store.update('users',remaining[0]._id,{isFamilyHead:true});
   return familyWithMembers(familyId);
 });
 const deleteFamilyById = async id => store.transaction(() => {

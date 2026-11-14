@@ -1,9 +1,9 @@
 import axios from "axios";
 
-const apiUrl = process.env.REACT_APP_API_URL || "http://localhost:9191";
+import { backendUrl as apiUrl } from "../config/api";
 
-export async function loadOrCreateUser(firebaseUser, token) {
-  const config = { headers: { Authorization: `Bearer ${token}` } };
+export async function loadOrCreateUser(firebaseUser, token, options = {}) {
+  const config = { ...options, timeout:15000, headers: { Authorization: `Bearer ${token}` } };
   try {
     const response = await axios.get(`${apiUrl}/api/user/getuser`, {
       ...config,
@@ -14,12 +14,21 @@ export async function loadOrCreateUser(firebaseUser, token) {
     // Only an explicit missing-user response should trigger account creation.
     if (error.response?.status !== 404) throw error;
   }
-  const response = await axios.post(`${apiUrl}/api/user/createuser`, {
-    userName: firebaseUser.displayName,
-    email: firebaseUser.email,
-    photoURL: firebaseUser.photoURL,
-  }, config);
-  return response.data;
+  try {
+    const response = await axios.post(`${apiUrl}/api/user/createuser`, {
+      userName: firebaseUser.displayName || firebaseUser.email,
+      email: firebaseUser.email,
+      photoURL: firebaseUser.photoURL,
+    }, config);
+    return response.data;
+  } catch (error) {
+    // Another browser tab may have created the same profile in the meantime.
+    if (error.response?.status !== 409) throw error;
+    const response = await axios.get(`${apiUrl}/api/user/getuser`, {
+      ...config, params: {email:firebaseUser.email},
+    });
+    return response.data;
+  }
 }
 
 export function userSyncErrorMessage(error) {

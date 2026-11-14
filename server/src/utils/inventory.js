@@ -21,6 +21,9 @@ const ignored = /^(?:sub\s*total|total|tax|gst|pst|hst|cash|change|credit|debit|
 const price = /\$?\d+[.,]\d{2}\s*[A-Z]?\s*$/i;
 
 exports.parseReceiptText = text => {
+  const expiry = new Date();
+  expiry.setDate(expiry.getDate() + 14);
+  const defaultExpiry = [expiry.getFullYear(), String(expiry.getMonth() + 1).padStart(2, '0'), String(expiry.getDate()).padStart(2, '0')].join('-');
   const items = [];
   for (const original of String(text || '').split(/\r?\n/).slice(0,500)) {
     const line = original.trim().slice(0,300);
@@ -41,8 +44,8 @@ exports.parseReceiptText = text => {
       name:food?.name || product,
       quantity:quantity > 0 ? quantity : 1,
       quantitySource:explicitQuantity && quantity > 0 ? 'receipt' : 'unconfirmed',
-      expiresAt:null,
-      expirySource:'unknown',
+      expiresAt:defaultExpiry,
+      expirySource:'default',
       fooDBKey:food?.key || null,
       sourceLine:line,
       matchType:food ? 'matched' : 'unmatched',

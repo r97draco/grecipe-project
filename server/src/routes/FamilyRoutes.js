@@ -10,33 +10,30 @@ const authMiddleware = require('../middlewares/auth');
 const validate = require('../middlewares/validate');
 const familySchema = require('../validation/ValFamily');
 const router = express.Router();
+router.use(authMiddleware, require('../middlewares/profile'));
 
 router.post(
   '/createfamily',
-  authMiddleware,
   validate(familySchema.createFamily),
   createFamily
 );
 
-router.get('/getallfamilies', authMiddleware, getAllFamilies);
+router.get('/getallfamilies', getAllFamilies);
 
 router.get(
   '/:familyId',
   validate(familySchema.getFamily),
-  authMiddleware,
   getFamily
 );
 
 router.put(
   '/updatefamily/:familyId',
-  authMiddleware,
   validate(familySchema.updateFamily),
   updateFamilyMembers
 );
 
 router.delete(
   '/:familyId',
-  authMiddleware,
   validate(familySchema.deleteFamily),
   deleteFamily
 );

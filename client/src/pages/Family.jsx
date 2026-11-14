@@ -1,17 +1,16 @@
 import { useContext, useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { FiArrowRight, FiCheck, FiHome, FiPlus, FiSearch, FiShield, FiUsers, FiX, FiUserPlus, FiLogOut, FiTrash2, FiCopy } from 'react-icons/fi';
-import { signInWithPopup } from 'firebase/auth';
-import { auth, provider } from '../firebase/firebase';
 import { UserContext, backendUrl } from '../App';
-import api from '../utils/authenticatedApi';
+import api, { isCanceled } from '../utils/authenticatedApi';
+import usePageScope from '../hooks/usePageScope';
 import Footer from '../components/Footer';
 import '../css/Family.css';
 
 const initials = name => (name || '?').split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]).join('').toUpperCase();
 
 export default function FamilyPage() {
-  const { user, setUser } = useContext(UserContext);
+  const { user, setUser, signIn: login, authBusy, startDemo } = useContext(UserContext);
   const [family, setFamily] = useState(null);
   const [families, setFamilies] = useState([]);
   const [name, setName] = useState('');
@@ -25,7 +24,14 @@ export default function FamilyPage() {
   const [notice, setNotice] = useState('');
   const [pendingMember, setPendingMember] = useState(null);
   const [revision, setRevision] = useState(0);
+  useEffect(() => {
+    if (!notice) return;
+    const timer = setTimeout(() => setNotice(''),3500);
+    return () => clearTimeout(timer);
+  },[notice]);
   const cancelRef = useRef(null);
+  const isActive = usePageScope();
+  const mutationLock = useRef(false);
   useEffect(() => {
     if (!pendingMember) return;
     const previous = document.activeElement;
@@ -41,27 +47,31 @@ export default function FamilyPage() {
     if (!user._id) { setLoading(false); return; }
     setLoading(true);
     const path = user.family ? `/api/family/${user.family}` : '/api/family/getallfamilies';
-    api.get(`${backendUrl}${path}`).then(response => {
+    api.get(`${backendUrl}${path}`,{cache:revision === 0}).then(response => {
       if (!active) return;
       if (user.family) setFamily(response.data);
       else setFamilies(response.data);
     }).catch(error => {
-      if (active) setError(error.response?.status === 401 ? 'Please sign in again to manage your family.' : 'We couldn’t load your family. Please try again.');
+      if (active && !isCanceled(error)) setError(error.response?.status === 401 ? 'Please sign in again to manage your family.' : 'We couldn’t load your family. Please try again.');
     }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [user._id, user.family, revision]);
 
   const runAction = async (key, action, message) => {
-    if (busy) return;
+    if (mutationLock.current) return;
+    mutationLock.current = true;
     setBusy(key); setError(''); setNotice('');
     try {
-      await action();
-      const response = await api.get(`${backendUrl}/api/user/getuser`, { params: { email: user.email } });
-      setUser(response.data); setRevision(value => value + 1);
+      const response = await action();
+      if (!isActive()) return;
+      const updatedFamily = response.data.family || response.data;
+      const member = updatedFamily.members?.find(person => person._id === user._id);
+      setUser(member ? {...user,...member,family:updatedFamily._id} : {...user,family:null,isFamilyHead:false});
+      setFamily(member ? updatedFamily : null);
       setPendingMember(null); setName(''); setNotice(message);
     } catch (error) {
-      setError(error.response?.data?.message || 'Something went wrong. Please try again.');
-    } finally { setBusy(''); }
+      if (isActive() && !isCanceled(error)) setError(error.response?.data?.message || 'Something went wrong. Please try again.');
+    } finally { mutationLock.current=false; if(isActive()) setBusy(''); }
   };
   const createFamily = event => {
     event.preventDefault();
@@ -70,19 +80,16 @@ export default function FamilyPage() {
   };
   const joinFamily = id => runAction(id, () => api.put(`${backendUrl}/api/family/updatefamily/${id}`, {action:'add',memberId:user._id}), 'You’ve joined the family.');
   const removeMember = () => runAction('remove', () => api.put(`${backendUrl}/api/family/updatefamily/${family._id}`, {action:'remove', memberId:pendingMember._id}), pendingMember._id === user._id ? 'You’ve left the family.' : 'Member removed from the family.');
-  const signIn = async () => {
-    setBusy('signin'); setError('');
-    try { await signInWithPopup(auth, provider); }
-    catch { setError('Sign-in didn’t finish. Please try again using Join in the navigation.'); }
-    finally { setBusy(''); }
-  };
+  const signIn = () => login();
   const copyFamilyLink = async () => {
     try {
       const link = new URL('/family', window.location.origin);
       link.searchParams.set('search', family.name);
       await navigator.clipboard.writeText(link.toString());
+      if (!isActive()) return;
       setNotice('Family link copied. Share it with the person you want to join.');
     } catch {
+      if (!isActive()) return;
       setError('Couldn’t copy the link. Ask them to open Family and search for your family name.');
     }
   };
@@ -104,7 +111,7 @@ export default function FamilyPage() {
           <span className="family-icon"><FiUsers/></span>
           <h2>Your shared groceries start here</h2>
           <p>Sign in to create a family or join an existing one.</p>
-          <button className="family-button primary" onClick={signIn} disabled={!!busy}>{busy === 'signin' ? 'Opening sign-in…' : 'Sign in with Google'}<FiArrowRight/></button>
+          <button className="family-button primary" onClick={signIn} disabled={authBusy}>{authBusy ? 'Opening sign-in…' : 'Sign in with Google'}<FiArrowRight/></button><button className="family-button secondary demo-entry" onClick={startDemo} disabled={authBusy}>Try the demo</button>
         </section> : loading ? <div className="family-loading" role="status">Loading your family…</div> : family ? <>
           <section className="family-summary family-card">
             <span className="family-icon"><FiHome/></span>
@@ -113,8 +120,8 @@ export default function FamilyPage() {
           </section>
 
           <section className="family-card family-members-card">
-            <div className="family-section-heading"><div><h2>Family members <span className="family-count">{members.length}</span></h2><p>See who’s in your family and manage their access.</p></div><button className="family-button primary" aria-expanded={showAddMembers} onClick={() => setShowAddMembers(value => !value)}><FiUserPlus/>{showAddMembers ? 'Close' : 'Add members'}</button></div>
-            {showAddMembers && <div className="family-add-panel"><div><h3>Add someone to {family.name}</h3><p>Share your family link. They’ll sign in, find your family, and choose <strong>Join family</strong>.</p></div><button className="family-button secondary" onClick={copyFamilyLink}><FiCopy/>Copy family link</button></div>}
+            <div className="family-section-heading"><div><h2>Family members <span className="family-count">{members.length}</span></h2></div><button className="family-button primary" aria-expanded={showAddMembers} onClick={() => setShowAddMembers(value => !value)}><FiUserPlus/>{showAddMembers ? 'Close' : 'Add members'}</button></div>
+            {showAddMembers && <div className="family-add-panel"><div><h3>Add someone to {family.name}</h3><p>Share this link so they can join your family.</p></div><button className="family-button secondary" onClick={copyFamilyLink}><FiCopy/>Copy family link</button></div>}
             <div className="family-table-labels" aria-hidden="true"><span>Member</span><span>Role</span><span>Action</span></div>
             <div className="family-member-list">{members.map(member => <div className="family-member" key={member._id}>
               <div className="family-member-person"><span className="family-member-avatar">{initials(member.userName)}</span>
@@ -123,7 +130,7 @@ export default function FamilyPage() {
               <div className="family-member-controls">{user.isFamilyHead && member._id !== user._id ? <button className="family-button remove" aria-label={`Remove ${member.userName || 'member'}`} onClick={() => setPendingMember(member)} disabled={!!busy}><FiTrash2/>Remove</button> : <span className="family-no-action">{member._id === user._id ? 'Your account' : '—'}</span>}</div>
             </div>)}</div>
           </section>
-          <section className="family-leave family-card"><div><h2>Leave this family</h2><p>You’ll lose access to its shared inventory. Your account stays active.</p></div><button className="family-button remove" onClick={() => setPendingMember(user)} disabled={!!busy}><FiLogOut/>Leave family</button></section>
+          <section className="family-leave family-card"><div><h2>Leave this family</h2><p>You’ll no longer share this inventory.</p></div><button className="family-button remove" onClick={() => setPendingMember(user)} disabled={!!busy}><FiLogOut/>Leave family</button></section>
         </> : user.family ? <div className="family-card family-empty"><FiUsers/><h2>Family unavailable</h2><p>Try loading your family again using the button above.</p></div> : <div className="family-setup">
           <div className="family-setup-tabs" role="tablist" aria-label="Family setup"><button id="join-family-tab" role="tab" aria-selected={setupMode === 'join'} aria-controls="family-setup-panel" onClick={() => setSetupMode('join')}><FiUsers/>Join a family</button><button id="create-family-tab" role="tab" aria-selected={setupMode === 'create'} aria-controls="family-setup-panel" onClick={() => setSetupMode('create')}><FiPlus/>Create a family</button></div>
           <div id="family-setup-panel" role="tabpanel" aria-labelledby={setupMode === 'join' ? 'join-family-tab' : 'create-family-tab'}>
@@ -134,7 +141,7 @@ export default function FamilyPage() {
               <input id="family-name" value={name} onChange={event => setName(event.target.value)} maxLength={80} placeholder="e.g. Singh family" disabled={!!busy} required/>
               <button className="family-button primary" disabled={!name.trim() || !!busy}>{busy === 'create' ? 'Creating…' : 'Create family'}<FiPlus/></button>
             </form>
-            <p className="family-hint"><FiShield/>As the family head, you can manage members.</p>
+
           </section> : <section className="family-card family-join-card">
             <div className="family-section-heading"><span className="family-icon"><FiUsers/></span><div><h2>Join a family</h2><p>Find your household and share its inventory.</p></div></div>
             <label className="family-search"><FiSearch/><input aria-label="Search families" placeholder="Type your family’s name" value={search} onChange={event => setSearch(event.target.value)}/></label>
