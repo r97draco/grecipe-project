@@ -39,11 +39,9 @@
 .health-workout-toolbar .health-tracker-controls{margin-left:auto}
 .health-camera-stage{display:flex;align-items:center;justify-content:center;min-width:0}
 .health-camera-stage .health-camera{aspect-ratio:var(--camera-ratio,4 / 3);min-height:0;max-height:none;flex:none}
-.health-camera-counter{position:absolute;right:18px;top:50%;transform:translateY(-50%);z-index:2;display:flex;flex-direction:column;align-items:center;gap:3px;padding:18px 16px;background:#231d16c9;backdrop-filter:blur(8px);border:1px solid #ffffff26;border-radius:14px;color:#fff;pointer-events:none;min-width:106px;font-variant-numeric:tabular-nums}
-.health-camera-counter>strong{font-size:52px;line-height:1;font-weight:600;letter-spacing:-2px}
-.health-camera-counter>span{font-size:13px;color:#f0e4d5}
-.health-camera-counter>div{display:flex;gap:12px;margin-top:12px;padding-top:10px;border-top:1px solid #ffffff30;font-size:12px;color:#e3d3c1}
-.health-camera-counter b{display:block;text-align:center;font-weight:500;font-size:18px;color:#fff;margin-top:3px}
+.health-camera-counter{position:absolute;right:12px;top:12px;z-index:2;display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 10px;background:#231d16bd;backdrop-filter:blur(6px);border-radius:8px;color:#fff;pointer-events:none;font-variant-numeric:tabular-nums}
+.health-camera-counter>strong{font-size:20px;line-height:1.1;font-weight:500}
+.health-camera-counter>span{font-size:11px;line-height:1.2;color:#f0e4d5}
 .health-tracker.is-expanded .health-camera-stage{flex:1;min-height:0;overflow:hidden}
 .health-tracker.is-expanded .health-camera-stage .health-camera{aspect-ratio:var(--camera-ratio,4 / 3);flex:none;min-height:0;max-height:none}
-@media(max-width:540px){.health-camera-counter{right:10px;min-width:76px;padding:12px 10px;border-radius:10px}.health-camera-counter>strong{font-size:36px;letter-spacing:-1px}.health-camera-counter>span{font-size:11px}.health-camera-counter>div{gap:10px;font-size:10px;margin-top:8px;padding-top:8px}.health-camera-counter b{font-size:15px}.health-workout-toolbar .health-tracker-controls{width:auto}}
+@media(max-width:540px){.health-camera-counter{right:10px;top:10px}.health-workout-toolbar .health-tracker-controls{width:auto}}

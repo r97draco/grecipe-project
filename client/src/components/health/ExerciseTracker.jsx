@@ -6,7 +6,7 @@ import { requestCamera, cameraErrorMessage } from '../../utils/camera';
 export default function ExerciseTracker({ target, onSave }) {
   const video=useRef(null), canvas=useRef(null), session=useRef(null), count=useRef(0);
   const [running,setRunning]=useState(false), [status,setStatus]=useState('idle');
-  const [reps,setReps]=useState(0), [armReps,setArmReps]=useState({left:0,right:0}), [visibleArms,setVisibleArms]=useState(0);
+  const [reps,setReps]=useState(0), [visibleArms,setVisibleArms]=useState(0);
   const totals=useRef({left:0,right:0});
   const [sessionTarget,setSessionTarget]=useState(target);
   const [prompt,setPrompt]=useState(''), [error,setError]=useState(''), [saved,setSaved]=useState(false), [saving,setSaving]=useState(false);
@@ -67,7 +67,6 @@ export default function ExerciseTracker({ target, onSave }) {
         setVisibleArms(result.visibleArms);setPrompt(result.prompt);
         if(result.increment){
           totals.current={left:totals.current.left+Number(result.arms.left.counted),right:totals.current.right+Number(result.arms.right.counted)};
-          setArmReps(totals.current);
           count.current+=result.increment;setReps(count.current);
           if(count.current>=sessionTarget){setStatus('complete');setRunning(false);stop();return;}
         }
@@ -114,7 +113,7 @@ export default function ExerciseTracker({ target, onSave }) {
     const promise=requestCamera({facingMode:{ideal:'user'},width:{ideal:640},height:{ideal:480}},controller.signal)
       .then(stream=>({stream}),error=>({error}));
     cameraRequest.current={controller,promise};
-    count.current=0;totals.current={left:0,right:0};session.current=null;setSessionTarget(target);setReps(0);setArmReps(totals.current);setVisibleArms(0);setError('');setPrompt('');setSaved(false);setStatus('starting');setRunning(true);
+    count.current=0;totals.current={left:0,right:0};session.current=null;setSessionTarget(target);setReps(0);setVisibleArms(0);setError('');setPrompt('');setSaved(false);setStatus('starting');setRunning(true);
   };
   const save=async()=>{
     if(saveLock.current||saved||!session.current||!reps)return;
@@ -142,7 +141,7 @@ export default function ExerciseTracker({ target, onSave }) {
       {!running&&<div className="health-camera-placeholder"><FiCamera/><p>Keep your shoulders, elbows and wrists in view.</p></div>}
       {running&&(status==='starting'||status==='loading')&&<div className="health-camera-loading" role="status">{status==='starting'?'Opening camera…':'Loading pose model…'}</div>}
       {status==='tracking'&&running&&<span className="health-live-indicator">{visibleArms===2?'Both arms visible':visibleArms===1?'One arm visible':'Move into view'}</span>}
-      <div className="health-camera-counter" aria-live="polite" aria-atomic="true"><strong>{reps}</strong><span>of {running||reps?sessionTarget:target} reps</span><div><span>Left <b>{armReps.left}</b></span><span>Right <b>{armReps.right}</b></span></div></div>
+      <div className="health-camera-counter" aria-live="polite" aria-atomic="true"><strong>{reps}/{running||reps?sessionTarget:target}</strong><span>reps</span></div>
     </div></div>
   </section>;
 }
